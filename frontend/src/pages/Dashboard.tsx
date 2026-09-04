@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
 import { AntecedentChart, DischargeChart, RainfallChart, RiskTrendChart } from '../charts/Charts'
 import { AlertPanel } from '../components/AlertPanel'
 import { Explainability } from '../components/Explainability'
@@ -17,6 +17,7 @@ import {
   timeAgo,
 } from '../components/ui'
 import { useAsync } from '../hooks/useApi'
+import type { SimulationState } from '../hooks/useSimulation'
 import { RiskMap } from '../maps/RiskMap'
 import { api } from '../services/api'
 import type { DashboardSummary, MonitoringSnapshot } from '../types'
@@ -28,6 +29,10 @@ interface Props {
   summary: DashboardSummary | null
   summaryError: string | null
   onDataChanged: () => void
+  /** The one authoritative simulation state, owned by App. */
+  simulation: SimulationState
+  /** Bumped by the header refresh button; included in fetch deps. */
+  refreshTick: number
 }
 
 export function Dashboard({
@@ -37,17 +42,18 @@ export function Dashboard({
   summary,
   summaryError,
   onDataChanged,
+  simulation,
+  refreshTick,
 }: Props) {
-  const [busy, setBusy] = useState(false)
 
   const monitoring = useAsync<MonitoringSnapshot>(
     () => api.monitoring(selectedLocation),
-    [selectedLocation],
+    [selectedLocation, refreshTick],
     { enabled: Boolean(selectedLocation) },
   )
 
-  const riskMap = useAsync(() => api.riskMap(regionId), [regionId])
-  const layers = useAsync(() => api.mapLayers(regionId), [regionId])
+  const riskMap = useAsync(() => api.riskMap(regionId), [regionId, refreshTick])
+  const layers = useAsync(() => api.mapLayers(regionId), [regionId, refreshTick])
   const scenarios = useAsync(() => api.scenarios(), [])
   const controls = useAsync(() => api.simulationControls(), [])
 
@@ -69,46 +75,29 @@ export function Dashboard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLocation, regionId])
 
+  /* All three mutations go through the shared simulation state, then refresh
+     the panels that depend on it. Dashboard keeps no simulation flag of its
+     own — that was the source of the header and panel disagreeing. */
+  const afterSimulationChange = useCallback(() => {
+    monitoring.refresh()
+    riskMap.refresh()
+    onDataChanged()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedLocation, regionId])
+
   const runScenario = async (scenarioId: string) => {
-    setBusy(true)
-    try {
-      const result = await api.runSimulation({ scenario_id: scenarioId, location_id: selectedLocation })
-      if (result.monitoring) monitoring.setData(result.monitoring)
-      riskMap.refresh()
-      onDataChanged()
-    } catch (e) {
-      console.error('scenario run failed', e)
-    } finally {
-      setBusy(false)
-    }
+    await simulation.runScenario(scenarioId)
+    afterSimulationChange()
   }
 
   const applyOverrides = async (overrides: Record<string, number>) => {
-    setBusy(true)
-    try {
-      const result = await api.runSimulation({ overrides, location_id: selectedLocation })
-      if (result.monitoring) monitoring.setData(result.monitoring)
-      riskMap.refresh()
-      onDataChanged()
-    } catch (e) {
-      console.error('override failed', e)
-    } finally {
-      setBusy(false)
-    }
+    await simulation.applyOverrides(overrides)
+    afterSimulationChange()
   }
 
-  const resetSimulation = async () => {
-    setBusy(true)
-    try {
-      const result = await api.resetSimulation(selectedLocation)
-      if (result.monitoring) monitoring.setData(result.monitoring)
-      riskMap.refresh()
-      onDataChanged()
-    } catch (e) {
-      console.error('reset failed', e)
-    } finally {
-      setBusy(false)
-    }
+  const exitSimulation = async () => {
+    await simulation.exit()
+    afterSimulationChange()
   }
 
   // Keyboard shortcut: R refreshes, Esc leaves simulation.
@@ -116,12 +105,12 @@ export function Dashboard({
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return
       if (e.key === 'r' || e.key === 'R') refreshAll()
-      if (e.key === 'Escape' && snap?.simulation.active) void resetSimulation()
+      if (e.key === 'Escape' && simulation.active) void exitSimulation()
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshAll, snap?.simulation.active])
+  }, [refreshAll, simulation.active])
 
   if (monitoring.error && !snap) {
     return <ErrorBox error={monitoring.error} onRetry={monitoring.refresh} />
@@ -366,15 +355,15 @@ export function Dashboard({
           <SimulationPanel
             controls={controls.data.controls}
             scenarios={scenarios.data.scenarios}
-            active={snap?.simulation.active ?? false}
-            activeScenarioId={snap?.simulation.scenario_id ?? null}
-            overrides={snap?.simulation.overrides ?? {}}
+            active={simulation.active}
+            activeScenarioId={simulation.scenarioId}
+            overrides={simulation.overrides}
             baseline={baseline}
-            readouts={snap?.simulation.readouts ?? null}
-            busy={busy}
+            readouts={simulation.readouts}
+            busy={simulation.busy}
             onRunScenario={runScenario}
             onOverride={applyOverrides}
-            onReset={resetSimulation}
+            onExit={exitSimulation}
           />
         ) : (
           <Skeleton height={320} />

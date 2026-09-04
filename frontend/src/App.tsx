@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { FreshnessBadge, Spinner, timeAgo } from './components/ui'
 import { useAsync, useStored } from './hooks/useApi'
+import { useSimulation } from './hooks/useSimulation'
 import { Authority } from './pages/Authority'
 import { Dashboard } from './pages/Dashboard'
 import { Methodology } from './pages/Methodology'
@@ -12,11 +13,45 @@ type Page = 'dashboard' | 'authority' | 'methodology'
 export default function App() {
   const [page, setPage] = useStored<Page>('floodsafe.page', 'dashboard')
   const [regionId, setRegionId] = useStored<string>('floodsafe.region', 'uttarakhand')
-  const [locationId, setLocationId] = useStored<string>('floodsafe.location', '')
+  const [storedLocationId, setStoredLocationId] = useStored<string>('floodsafe.location', '')
+
+  /* One counter drives every manual refresh. Pages include it in their fetch
+     deps, so one click fans out to exactly one refetch per query — no duplicate
+     loops, and no page needs its own refresh plumbing. */
+  const [refreshTick, setRefreshTick] = useState(0)
 
   const regions = useAsync(() => api.regions(), [])
   const locations = useAsync(() => api.locations(regionId), [regionId])
-  const sources = useAsync(() => api.sources(), [], { pollMs: 60_000 })
+  const sources = useAsync(() => api.sources(), [refreshTick], { pollMs: 60_000 })
+
+  /* The locations list lags a region change by one fetch (useAsync keeps the
+     previous value so the UI doesn't blank). Comparing the payload's own
+     region_id tells us whether the list on hand actually belongs to the region
+     that is selected — without it the dashboard briefly requests a location
+     from the region we just left. */
+  const regionReady = locations.data?.region_id === regionId
+  const locationList = useMemo(
+    () => (regionReady ? (locations.data?.locations ?? []) : []),
+    [regionReady, locations.data],
+  )
+
+  /* Derived during render rather than corrected by an effect, so it is never
+     momentarily pointing at another region's location. */
+  const locationId = useMemo(() => {
+    if (locationList.length === 0) return ''
+    return locationList.some((l) => l.id === storedLocationId)
+      ? storedLocationId
+      : locationList[0].id
+  }, [locationList, storedLocationId])
+
+  // Persist the corrected value so a reload starts where the user left off.
+  useEffect(() => {
+    if (locationId && locationId !== storedLocationId) setStoredLocationId(locationId)
+  }, [locationId, storedLocationId, setStoredLocationId])
+
+  /* The single authoritative simulation state. Header, dashboard and simulator
+     panel all read this one object. */
+  const simulation = useSimulation(locationId || null)
 
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [summaryError, setSummaryError] = useState<string | null>(null)
@@ -37,30 +72,50 @@ export default function App() {
 
   useEffect(() => {
     void loadSummary()
-  }, [loadSummary])
+  }, [loadSummary, refreshTick])
 
-  // Keep the selected location valid whenever the region changes.
-  useEffect(() => {
-    const list = locations.data?.locations ?? []
-    if (list.length === 0) return
-    if (!list.some((l) => l.id === locationId)) setLocationId(list[0].id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locations.data, locationId])
+  const refreshAll = useCallback(() => {
+    setRefreshTick((n) => n + 1)
+    void simulation.refresh()
+  }, [simulation])
 
   const selectLocation = useCallback(
     (id: string) => {
-      setLocationId(id)
+      setStoredLocationId(id)
       setPage('dashboard')
     },
-    [setLocationId, setPage],
+    [setStoredLocationId, setPage],
   )
 
-  const simulationActive = summary?.simulation.active ?? false
+  const exitSimulation = useCallback(async () => {
+    await simulation.exit()
+    setRefreshTick((n) => n + 1)
+    void loadSummary()
+  }, [simulation, loadSummary])
+
+  // R refreshes from anywhere outside a form control.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return
+      if (e.key === 'r' || e.key === 'R') refreshAll()
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [refreshAll])
+
   const degraded = useMemo(() => {
     const s = sources.data
     if (!s) return null
-    if (!s.network_enabled) return 'Offline mode'
-    return s.overall === 'OK' ? null : s.overall
+    if (!s.network_enabled) return { label: 'Offline mode', detail: 'Outbound network is disabled; values are served from cache or clearly-labelled demo data.' }
+    if (s.overall === 'OK') return null
+    const down = s.sources.filter((x) => x.status === 'DOWN' || x.status === 'DEGRADED')
+    return {
+      label: s.overall === 'DOWN' ? 'Sources down' : 'Degraded',
+      detail:
+        `One or more external data sources are delayed or unavailable` +
+        (down.length ? `: ${down.map((d) => d.label ?? d.name).join(', ')}. ` : '. ') +
+        `Affected values fall back to cache or demo data and stay labelled as such.`,
+    }
   }, [sources.data])
 
   return (
@@ -80,82 +135,111 @@ export default function App() {
           <button
             className={page === 'dashboard' ? 'active' : ''}
             onClick={() => setPage('dashboard')}
-            aria-current={page === 'dashboard'}
+            aria-current={page === 'dashboard' ? 'page' : undefined}
           >
             Dashboard
           </button>
           <button
             className={page === 'authority' ? 'active' : ''}
             onClick={() => setPage('authority')}
-            aria-current={page === 'authority'}
+            aria-current={page === 'authority' ? 'page' : undefined}
           >
             Command centre
           </button>
           <button
             className={page === 'methodology' ? 'active' : ''}
             onClick={() => setPage('methodology')}
-            aria-current={page === 'methodology'}
+            aria-current={page === 'methodology' ? 'page' : undefined}
           >
             Methodology
           </button>
         </nav>
 
         <div className="header-right">
-          {simulationActive && (
-            <span className="badge badge-sim" title="The platform is showing a simulated scenario">
-              <span className="dot" />
-              Simulation active
-            </span>
+          {/* Mode. When simulated, the way out sits immediately beside the badge. */}
+          {simulation.active ? (
+            <div className="mode-group" role="status" aria-live="polite">
+              <span
+                className="badge badge-sim"
+                title="Risk values are being computed from simulator inputs, not measurements."
+              >
+                <span className="dot" />
+                Simulation active
+              </span>
+              <button
+                className="btn btn-sm btn-exit-sim"
+                onClick={() => void exitSimulation()}
+                disabled={simulation.busy}
+                title="Leave simulation mode and restore live measured values"
+              >
+                {simulation.busy ? <Spinner /> : <span aria-hidden>✕</span>}
+                Exit simulation
+              </button>
+            </div>
+          ) : (
+            sources.data && <FreshnessBadge freshness="LIVE" compact />
           )}
 
           {degraded && (
-            <span className="badge badge-stale" title="One or more upstream data sources are unavailable">
+            <span className="badge badge-stale" title={degraded.detail} tabIndex={0}>
               <span className="dot" />
-              {degraded}
+              {degraded.label}
             </span>
           )}
 
-          {sources.data && !degraded && (
-            <FreshnessBadge freshness="LIVE" compact />
-          )}
-
-          <select
-            value={regionId}
-            onChange={(e) => setRegionId(e.target.value)}
-            aria-label="Pilot region"
-            title="Regions are pure configuration - add a JSON file to add a region"
-          >
-            {(regions.data?.regions ?? []).map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.display_name}
-              </option>
-            ))}
-          </select>
-
-          {page !== 'methodology' && (
+          <label className="field field-region">
+            <span className="field-label">Region</span>
             <select
-              value={locationId}
-              onChange={(e) => setLocationId(e.target.value)}
-              aria-label="Monitoring location"
-              style={{ maxWidth: '13rem' }}
+              value={regionId}
+              onChange={(e) => setRegionId(e.target.value)}
+              aria-label="Pilot region"
             >
-              {(locations.data?.locations ?? []).map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.name}
-                  {l.district ? ` · ${l.district}` : ''}
+              {(regions.data?.regions ?? []).map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.display_name}
                 </option>
               ))}
             </select>
+          </label>
+
+          {page !== 'methodology' && (
+            <label className="field field-location">
+              <span className="field-label">Location</span>
+              <select
+                value={locationId}
+                onChange={(e) => setStoredLocationId(e.target.value)}
+                aria-label="Monitoring location"
+                disabled={!regionReady || locationList.length === 0}
+              >
+                {locationList.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                    {l.district ? ` · ${l.district}` : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
           )}
 
-          <button className="btn btn-sm" onClick={() => void loadSummary()} title="Refresh (R)">
-            {summaryLoading ? <Spinner /> : '↻'}
+          <button
+            className="btn btn-sm btn-refresh"
+            onClick={refreshAll}
+            disabled={summaryLoading}
+            aria-label="Refresh all data"
+            title="Re-fetch every panel on this page (keyboard: R)"
+          >
+            {summaryLoading ? <Spinner /> : <span aria-hidden>↻</span>}
+            Refresh
           </button>
         </div>
       </header>
 
       <main className="main">
-        {page === 'dashboard' && locationId && (
+        {!regionReady && !locations.error && (
+          <div className="empty">Loading {regions.data?.regions.find((r) => r.id === regionId)?.display_name ?? 'region'}…</div>
+        )}
+
+        {regionReady && page === 'dashboard' && locationId && (
           <Dashboard
             regionId={regionId}
             selectedLocation={locationId}
@@ -163,9 +247,17 @@ export default function App() {
             summary={summary}
             summaryError={summaryError}
             onDataChanged={loadSummary}
+            simulation={simulation}
+            refreshTick={refreshTick}
           />
         )}
-        {page === 'authority' && <Authority regionId={regionId} onSelectLocation={selectLocation} />}
+        {regionReady && page === 'authority' && (
+          <Authority
+            regionId={regionId}
+            onSelectLocation={selectLocation}
+            refreshTick={refreshTick}
+          />
+        )}
         {page === 'methodology' && <Methodology />}
       </main>
 

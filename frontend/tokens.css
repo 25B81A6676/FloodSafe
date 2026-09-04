@@ -9,6 +9,12 @@
  */
 
 :root {
+  /* Tells the UA to paint native controls dark. Without this the computed
+     color-scheme is `normal`, so Chrome renders a <select>'s popup listbox on a
+     WHITE background while its options inherit our near-white ink - the list
+     opens effectively blank and the control reads as broken. */
+  color-scheme: dark;
+
   /* ---------------------------------------------------------------- surfaces
    * Dark-mode recipe: paper L 12-18%, elevation ascends in LIGHTNESS (never
    * darker), every neutral tinted toward the 256 anchor so nothing is flat grey.

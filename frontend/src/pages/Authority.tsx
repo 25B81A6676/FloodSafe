@@ -21,13 +21,16 @@ import type { RiskLevel } from '../types'
 export function Authority({
   regionId,
   onSelectLocation,
+  refreshTick,
 }: {
   regionId: string
   onSelectLocation: (id: string) => void
+  /** Bumped by the header refresh button; included in fetch deps. */
+  refreshTick: number
 }) {
-  const authority = useAsync(() => api.authority(regionId), [regionId], { pollMs: 120_000 })
-  const riskMap = useAsync(() => api.riskMap(regionId), [regionId])
-  const layers = useAsync(() => api.mapLayers(regionId), [regionId])
+  const authority = useAsync(() => api.authority(regionId), [regionId, refreshTick], { pollMs: 120_000 })
+  const riskMap = useAsync(() => api.riskMap(regionId), [regionId, refreshTick])
+  const layers = useAsync(() => api.mapLayers(regionId), [regionId, refreshTick])
   const [filter, setFilter] = useState<RiskLevel | 'ALL'>('ALL')
   const [selected, setSelected] = useState<string | null>(null)
 

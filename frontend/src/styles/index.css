@@ -79,6 +79,8 @@ a:hover { color: var(--color-focus); }
   top: 0;
   z-index: var(--z-sticky-nav);
   flex-wrap: wrap;
+  overflow: visible;
+  padding-block: var(--space-2xs);
 }
 
 .brand { display: flex; align-items: center; gap: var(--space-xs); }
@@ -134,9 +136,56 @@ a:hover { color: var(--color-focus); }
 .header-right {
   margin-left: auto;
   display: flex;
-  align-items: center;
+  /* flex-end so a stacked .field lines its INPUT up with the plain buttons and
+     badges beside it, rather than centring the whole label+input block. */
+  align-items: flex-end;
   gap: var(--space-xs);
   flex-wrap: wrap;
+  /* The header must never clip a control or a focus ring. */
+  overflow: visible;
+  padding-block: var(--space-2xs);
+}
+
+/* align-items: flex-end already lines every control's bottom edge up; an extra
+   margin here would lift the chips and buttons off that baseline. */
+
+/* Mode cluster: the state and the way out of it, kept adjacent so the exit is
+   never more than one glance from the badge that says you need it. */
+.mode-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  padding: var(--space-3xs) var(--space-3xs) var(--space-3xs) var(--space-2xs);
+  border: var(--rule-width) solid color-mix(in oklab, var(--state-sim) 45%, transparent);
+  background: color-mix(in oklab, var(--state-sim) 12%, var(--color-paper-3));
+  border-radius: var(--radius-pill);
+}
+.mode-group .badge { border: none; background: none; margin-bottom: 0; padding-inline: var(--space-2xs); }
+
+.btn-exit-sim {
+  border-color: color-mix(in oklab, var(--state-sim) 60%, transparent);
+  background: color-mix(in oklab, var(--state-sim) 22%, var(--color-paper-3));
+  color: var(--color-ink);
+  font-weight: 600;
+}
+.btn-exit-sim:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--state-sim) 36%, var(--color-paper-3));
+  border-color: var(--state-sim);
+}
+
+/* The refresh control keeps its word alongside the glyph — an icon-only button
+   has no accessible name and no obvious meaning. */
+
+/* Header fit. At 1280 the brand (328px) + nav (325px) + controls (548px) come
+   to exactly the available width, so the controls wrapped and the refresh
+   button was orphaned on a second row. The tagline is decorative — the
+   wordmark carries the identity — so it is the first thing to go, and the
+   control cluster is kept on one line above the mobile breakpoint. */
+@media (min-width: 1001px) {
+  .header-right { flex-wrap: nowrap; }
+}
+@media (max-width: 1400px) {
+  .brand-text p { display: none; }
 }
 
 .main {
@@ -494,10 +543,43 @@ select, input[type='text'] {
   border-radius: var(--radius);
   font-size: var(--text-sm);
   font-family: inherit;
-  min-height: 2rem;
-  min-width: 0;
+  /* Consistent with .btn so every header control lines up. */
+  min-height: 2.125rem;
+  /* NOT min-width: 0 — inside a flex row that lets the control shrink below its
+     own label and collapse to a bare arrow. `auto` is the protective default. */
+  min-width: auto;
+  cursor: pointer;
 }
 select:hover, input[type='text']:hover { border-color: var(--color-accent); }
+
+/* The popup listbox is painted by the UA. `color-scheme: dark` on :root makes it
+   dark, and these rules make the option colours explicit rather than inherited,
+   so the list can never render as light-on-light. */
+select option {
+  background: var(--color-paper-3);
+  color: var(--color-ink);
+}
+select option:checked { background: var(--color-paper-4); }
+
+/* A labelled control: caption above, input below. Used for the header selects so
+   the user can see WHAT is selected, not just the value. */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  min-width: 0;
+}
+.field-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--color-muted);
+  line-height: 1;
+}
+.field select { width: 100%; }
+.field-region { flex: 0 1 12rem; }
+.field-location { flex: 0 1 14rem; }
 
 .btn {
   background: var(--color-paper-3);

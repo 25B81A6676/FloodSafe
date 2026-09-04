@@ -13,7 +13,8 @@ interface Props {
   busy: boolean
   onRunScenario: (scenarioId: string) => void
   onOverride: (overrides: Record<string, number>) => void
-  onReset: () => void
+  /** Leaves simulation mode entirely and restores live measured values. */
+  onExit: () => void
 }
 
 const SEVERITY_TINT: Record<string, string> = {
@@ -34,7 +35,7 @@ export function SimulationPanel({
   busy,
   onRunScenario,
   onOverride,
-  onReset,
+  onExit,
 }: Props) {
   // Slider positions are local so dragging stays smooth; changes are debounced
   // before they reach the backend.
@@ -119,19 +120,38 @@ export function SimulationPanel({
           ))}
         </div>
 
-        <div className="row" style={{ gap: 'var(--space-xs)', marginTop: 'var(--space-sm)' }}>
+        <div className="row wrap" style={{ gap: 'var(--space-xs)', marginTop: 'var(--space-sm)' }}>
           <button
             className="btn btn-danger btn-block"
             onClick={() => extreme && onRunScenario(extreme.id)}
             disabled={busy || !extreme}
+            title="Load the cloudburst-class scenario"
           >
             {busy ? <span className="spinner" /> : <span aria-hidden>⛈</span>}
             Simulate flash flood
           </button>
-          <button className="btn btn-block" onClick={onReset} disabled={busy || !active}>
-            Reset scenario
+          {/* In this architecture POST /api/simulation/reset clears the override
+              state and returns the platform to LIVE — it *is* the way out, so it
+              is labelled as such rather than as a scenario reset that leaves you
+              still simulating. */}
+          <button
+            className="btn btn-block btn-exit-sim"
+            onClick={onExit}
+            disabled={busy || !active}
+            title="Leave simulation mode and restore live measured values"
+          >
+            {busy ? <span className="spinner" /> : <span aria-hidden>✕</span>}
+            Exit simulation
           </button>
         </div>
+
+        {active && (
+          <div className="notice notice-sim mt10" role="status">
+            Simulation is <strong>ON</strong>. Every value marked SIMULATION is a
+            simulator input, not a measurement. Use <strong>Exit simulation</strong> to
+            return to live data.
+          </div>
+        )}
 
         {active && readouts && (
           <div className="notice notice-sim mt10">
