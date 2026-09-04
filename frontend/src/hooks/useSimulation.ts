@@ -61,6 +61,13 @@ export function useSimulation(locationId: string | null): SimulationState {
 
   useEffect(() => {
     void refresh()
+    /* Simulation mode lives on the server, so it can change from outside this
+       tab — a second browser, a reset from the API, another operator. A light
+       poll means the badge can never sit stale against the data it labels;
+       without it the header kept claiming SIMULATION ACTIVE after the state had
+       already been cleared elsewhere. One interval, one small endpoint. */
+    const id = window.setInterval(() => void refresh(), 30_000)
+    return () => window.clearInterval(id)
   }, [refresh])
 
   const runScenario = useCallback(

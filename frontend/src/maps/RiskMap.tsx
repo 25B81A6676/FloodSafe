@@ -39,34 +39,6 @@ function Recentre({ center, zoom }: { center: [number, number]; zoom: number }) 
   return null
 }
 
-/**
- * Scroll-wheel zoom is enabled only after the map is clicked, and disabled
- * again when the pointer leaves. Without this the map swallows the page scroll
- * and a user reading the dashboard gets trapped in it.
- */
-function ScrollZoomGuard({ onArmedChange }: { onArmedChange: (armed: boolean) => void }) {
-  const map = useMap()
-  useEffect(() => {
-    const arm = () => {
-      map.scrollWheelZoom.enable()
-      onArmedChange(true)
-    }
-    const disarm = () => {
-      map.scrollWheelZoom.disable()
-      onArmedChange(false)
-    }
-    map.on('click', arm)
-    map.on('mouseout', disarm)
-    return () => {
-      map.off('click', arm)
-      map.off('mouseout', disarm)
-    }
-  }, [map, onArmedChange])
-  return null
-}
-
-/* Facility labels are static; their colours are resolved from tokens at render
-   time because Leaflet paints to canvas, where var() does not resolve. */
 const INFRA_LABEL: Record<string, { label: string; symbol: string }> = {
   hospital: { label: 'Hospital', symbol: 'H' },
   school: { label: 'School', symbol: 'S' },
@@ -91,7 +63,6 @@ export function RiskMap({
     stations: true,
     infrastructure: false,
   })
-  const [zoomArmed, setZoomArmed] = useState(false)
   // Leaflet renders to canvas — it needs computed colours, not var() refs.
   const t = useDesignTokens()
 
@@ -107,8 +78,20 @@ export function RiskMap({
     [riskMap, t],
   )
 
+  /* Critical infrastructure only — hospitals, schools and bridges. Settlements
+     are excluded because the monitoring stations already mark inhabited places
+     and 300+ extra dots would bury them.
+
+     No cap: an earlier .slice(0, 400) silently dropped real facilities, so the
+     layer label disagreed with the Exposed infrastructure panel. Canvas
+     rendering handles the full set without trouble, and the two counts now
+     reconcile — facilities + settlements = the panel's total. */
   const infra: InfrastructureFeature[] = useMemo(
-    () => (layers?.infrastructure ?? []).filter((f) => f.kind !== 'settlement').slice(0, 400),
+    () => (layers?.infrastructure ?? []).filter((f) => f.kind !== 'settlement'),
+    [layers],
+  )
+  const settlementCount = useMemo(
+    () => (layers?.infrastructure ?? []).filter((f) => f.kind === 'settlement').length,
     [layers],
   )
 
@@ -117,12 +100,20 @@ export function RiskMap({
       <MapContainer
         center={center}
         zoom={zoom}
-        scrollWheelZoom={false}
+        /* Wheel zoom is anchored on the pointer, so the feature under the
+           cursor stays put as you zoom into it. */
+        scrollWheelZoom
+        wheelPxPerZoomLevel={90}
+        wheelDebounceTime={20}
+        /* Quarter-step zoom so scrolling glides instead of jumping a whole
+           tile level at a time. */
+        zoomSnap={0.25}
+        zoomDelta={0.5}
+        doubleClickZoom
         style={{ height: '100%', width: '100%' }}
         preferCanvas
       >
         <Recentre center={center} zoom={zoom} />
-        <ScrollZoomGuard onArmedChange={setZoomArmed} />
         {/* OpenStreetMap tiles, darkened in CSS to match the console theme.
             Attribution is preserved exactly as the licence requires. */}
         <TileLayer
@@ -327,7 +318,15 @@ export function RiskMap({
             ['infrastructure', `Facilities (${infra.length})`],
           ] as const
         ).map(([key, label]) => (
-          <label className="layer-toggle" key={key}>
+          <label
+            className="layer-toggle"
+            key={key}
+            title={
+              key === 'infrastructure'
+                ? `Hospitals, schools and bridges from OpenStreetMap. ${settlementCount} settlements are counted in the Exposed infrastructure panel but not drawn here, so the stations stay readable.`
+                : undefined
+            }
+          >
             <input
               type="checkbox"
               checked={show[key]}
@@ -374,7 +373,7 @@ export function RiskMap({
             Discrete per-cell assessments, not an interpolated surface.
           </div>
           <div className="tiny faint" style={{ marginTop: 'var(--space-2xs)' }}>
-            {zoomArmed ? 'Scroll to zoom · move away to release' : 'Click the map to enable scroll zoom'}
+            Scroll to zoom · drag to pan · double-click to zoom in
           </div>
         </div>
       )}

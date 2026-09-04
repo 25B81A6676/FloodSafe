@@ -765,7 +765,16 @@ tbody tr:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 
 .risk-pill .sym { font-size: var(--text-xs); }
 
 /* ---------------------------------------------------------------- map */
-.map-shell { position: relative; height: 35rem; }
+.map-shell {
+  position: relative;
+  height: 35rem;
+  /* Leaflet positions its own panes at z-index 200-800 and our overlays sit at
+     810 to clear them. Without a stacking context here those values compete
+     directly with the page, so the map painted straight over the sticky header
+     (z-index 300) while scrolling. `isolation` contains the whole range inside
+     the map, leaving the shell itself to participate in the page normally. */
+  isolation: isolate;
+}
 .map-shell.tall { height: 41rem; }
 .leaflet-container {
   height: 100%;
