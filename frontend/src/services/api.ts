@@ -1,0 +1,142 @@
+/**
+ * The only place the frontend talks to a server.
+ *
+ * All environmental data reaches the browser through the FastAPI backend -
+ * no component calls Open-Meteo, Overpass or any other external service
+ * directly, and no risk calculation happens in the browser.
+ */
+import type {
+  DashboardSummary,
+  MapLayers,
+  ModelConfig,
+  MonitoringLocation,
+  MonitoringSnapshot,
+  Region,
+  RiskMap,
+  Scenario,
+  SimulationControl,
+  SimulationReadouts,
+  SystemSources,
+} from '../types'
+
+const BASE = '/api'
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly path: string,
+  ) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  let response: Response
+  try {
+    response = await fetch(`${BASE}${path}`, {
+      headers: { 'Content-Type': 'application/json' },
+      ...init,
+    })
+  } catch (cause) {
+    throw new ApiError(
+      'Cannot reach the FloodSafe backend. Is it running on port 8000?',
+      0,
+      path,
+    )
+  }
+
+  if (!response.ok) {
+    let detail = `${response.status} ${response.statusText}`
+    try {
+      const body = await response.json()
+      if (body?.detail) detail = String(body.detail)
+      else if (body?.error) detail = String(body.error)
+    } catch {
+      /* response had no JSON body */
+    }
+    throw new ApiError(detail, response.status, path)
+  }
+  return (await response.json()) as T
+}
+
+const qs = (params: Record<string, string | number | boolean | undefined>) => {
+  const search = new URLSearchParams()
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null) search.set(k, String(v))
+  }
+  const s = search.toString()
+  return s ? `?${s}` : ''
+}
+
+export const api = {
+  health: () => request<{ status: string; version: string }>('/health'),
+
+  sources: () => request<SystemSources>('/system/sources'),
+
+  regions: () =>
+    request<{ default_region_id: string; count: number; regions: Region[] }>('/regions'),
+
+  locations: (regionId?: string) =>
+    request<{
+      region_id: string
+      region_name: string
+      count: number
+      locations: MonitoringLocation[]
+    }>(`/locations${qs({ region_id: regionId })}`),
+
+  monitoring: (locationId: string, opts: { refresh?: boolean; timeline?: boolean } = {}) =>
+    request<MonitoringSnapshot>(
+      `/monitoring/${locationId}${qs({ refresh: opts.refresh, timeline: opts.timeline })}`,
+    ),
+
+  dashboard: (regionId?: string, refresh = false) =>
+    request<DashboardSummary>(`/dashboard/summary${qs({ region_id: regionId, refresh })}`),
+
+  authority: (regionId?: string, refresh = false) =>
+    request<DashboardSummary>(`/dashboard/authority${qs({ region_id: regionId, refresh })}`),
+
+  riskMap: (regionId?: string, refresh = false) =>
+    request<RiskMap>(`/risk/map${qs({ region_id: regionId, refresh })}`),
+
+  mapLayers: (regionId?: string) =>
+    request<MapLayers>(`/gis/layers${qs({ region_id: regionId })}`),
+
+  modelConfig: () => request<ModelConfig>('/risk/model'),
+
+  scenarios: () =>
+    request<{ count: number; scenarios: Scenario[]; notice: string }>('/simulation/scenarios'),
+
+  simulationControls: () =>
+    request<{ controls: SimulationControl[]; note: string }>('/simulation/controls'),
+
+  simulationState: () =>
+    request<{
+      active: boolean
+      scenario_id: string | null
+      overrides: Record<string, number>
+      readouts: SimulationReadouts | null
+    }>('/simulation/state'),
+
+  runSimulation: (body: {
+    scenario_id?: string | null
+    overrides?: Record<string, number>
+    merge?: boolean
+    location_id?: string
+  }) =>
+    request<{
+      active: boolean
+      scenario_id: string | null
+      overrides: Record<string, number>
+      rejected: string[]
+      readouts: SimulationReadouts
+      monitoring?: MonitoringSnapshot
+    }>('/simulation/run', { method: 'POST', body: JSON.stringify(body) }),
+
+  resetSimulation: (locationId?: string) =>
+    request<{ active: boolean; monitoring?: MonitoringSnapshot }>(
+      `/simulation/reset${qs({ location_id: locationId })}`,
+      { method: 'POST' },
+    ),
+}

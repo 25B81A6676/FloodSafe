@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vite/
+
+# Environment - never commit secrets
+.env
+.env.*
+!.env.example
+
+# Runtime data: SQLite cache is regenerated on first run
+data/cache/*.db
+data/cache/*.db-wal
+data/cache/*.db-shm
+data/cache/*.sqlite*
+
+# Trained models are build artefacts, not source
+ml/models/*.joblib
+ml/models/*_card.json
+
+# Optional operator-supplied dataset (must be cited, not committed by default)
+data/historical/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log

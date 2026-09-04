@@ -1,0 +1,24 @@
+{
+  "id": "normal",
+  "name": "Normal Conditions",
+  "short_name": "Normal",
+  "order": 1,
+  "severity": "baseline",
+  "data_kind": "SIMULATION",
+  "description": "Fair-weather baseline. Light residual rainfall, dry catchment, river running at its seasonal average.",
+  "narrative": "Conditions typical of a dry spell between monsoon pulses. Residual susceptibility is driven entirely by fixed terrain and channel proximity, not by weather.",
+  "expected_risk_level": "SAFE_TO_LOW",
+  "expected_score_range": [0, 40],
+  "overrides": {
+    "rainfall_intensity": 0.2,
+    "rainfall_3h": 1.5,
+    "rainfall_24h": 6.0,
+    "rainfall_forecast_24h": 8.0,
+    "rainfall_trend": 0.0,
+    "rainfall_anomaly": 35.0,
+    "antecedent_precipitation_index": 12.0,
+    "river_discharge_anomaly": 0.95
+  },
+  "hydrology_label": "Normal",
+  "water_rise_rate_cm_per_hr": 0.0
+}

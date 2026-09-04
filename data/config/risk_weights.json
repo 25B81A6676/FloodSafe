@@ -1,0 +1,154 @@
+{
+  "model_id": "baseline_weighted_v1",
+  "model_name": "Baseline Weighted Multi-Source Risk Model",
+  "version": "1.0.0",
+  "description": "Transparent weighted-sum risk model. Every feature is normalised to 0-1 with an explicit piecewise-linear curve, multiplied by a configurable weight, and summed to a 0-100 score. This is a decision-support heuristic, NOT a calibrated or validated hydrological flood forecast.",
+  "methodology_note": "Rainfall breakpoints follow India Meteorological Department rainfall intensity classes where applicable (IMD defines a cloudburst as rainfall exceeding 100 mm in one hour). Terrain and hydrology breakpoints are engineering judgement chosen to spread real observed values across the 0-1 range, and are configurable.",
+  "features": {
+    "rainfall_intensity": {
+      "label": "Rainfall intensity",
+      "group": "meteorological",
+      "unit": "mm/h",
+      "weight": 0.16,
+      "direction": "increasing",
+      "icon": "rain",
+      "curve": [[0,0.0],[2.5,0.10],[7.5,0.25],[15,0.45],[30,0.65],[50,0.82],[100,1.0]],
+      "rationale": "Short-duration rainfall intensity is the dominant trigger of flash flooding in steep catchments. The 100 mm/h endpoint is the IMD cloudburst threshold."
+    },
+    "rainfall_3h": {
+      "label": "3-hour rainfall accumulation",
+      "group": "meteorological",
+      "unit": "mm",
+      "weight": 0.09,
+      "direction": "increasing",
+      "icon": "rain",
+      "curve": [[0,0.0],[10,0.20],[25,0.45],[50,0.70],[80,0.88],[120,1.0]],
+      "rationale": "Captures burst totals over the typical response time of a small Himalayan catchment."
+    },
+    "rainfall_24h": {
+      "label": "24-hour rainfall accumulation",
+      "group": "meteorological",
+      "unit": "mm",
+      "weight": 0.09,
+      "direction": "increasing",
+      "icon": "rain",
+      "curve": [[0,0.0],[15.5,0.15],[64.4,0.45],[115.5,0.68],[204.4,0.88],[300,1.0]],
+      "rationale": "Breakpoints correspond to IMD daily rainfall classes: moderate, heavy, very heavy and extremely heavy rainfall."
+    },
+    "rainfall_forecast_24h": {
+      "label": "Forecast rainfall (next 24 h)",
+      "group": "meteorological",
+      "unit": "mm",
+      "weight": 0.09,
+      "direction": "increasing",
+      "icon": "forecast",
+      "curve": [[0,0.0],[15.5,0.15],[64.4,0.45],[115.5,0.68],[204.4,0.88],[300,1.0]],
+      "rationale": "Forward-looking component. Gives lead time rather than only reporting what has already fallen."
+    },
+    "rainfall_trend": {
+      "label": "Rainfall trend",
+      "group": "meteorological",
+      "unit": "mm/h per h",
+      "weight": 0.05,
+      "direction": "increasing",
+      "icon": "trend",
+      "curve": [[-5,0.0],[0,0.25],[2,0.45],[5,0.70],[10,0.90],[20,1.0]],
+      "rationale": "An intensifying storm is more dangerous than a decaying one at the same instantaneous intensity."
+    },
+    "rainfall_anomaly": {
+      "label": "Rainfall anomaly vs local climatology",
+      "group": "meteorological",
+      "unit": "percentile",
+      "weight": 0.07,
+      "direction": "increasing",
+      "icon": "history",
+      "curve": [[0,0.0],[50,0.20],[80,0.40],[90,0.60],[95,0.75],[99,0.92],[100,1.0]],
+      "rationale": "Computed from ERA5 reanalysis history for the same location and calendar window. 60 mm is unremarkable in one valley and a record in another; the percentile makes the signal locally meaningful."
+    },
+    "antecedent_precipitation_index": {
+      "label": "Soil saturation (antecedent precipitation index)",
+      "group": "hydrological",
+      "unit": "mm",
+      "weight": 0.10,
+      "direction": "increasing",
+      "icon": "soil",
+      "curve": [[0,0.0],[10,0.15],[30,0.35],[60,0.60],[100,0.80],[160,1.0]],
+      "rationale": "API is a standard hydrological proxy for catchment wetness, computed as the decay-weighted sum of previous daily rainfall. Saturated ground converts a far larger fraction of new rainfall into surface runoff."
+    },
+    "slope": {
+      "label": "Terrain slope",
+      "group": "terrain",
+      "unit": "degrees",
+      "weight": 0.09,
+      "direction": "increasing",
+      "icon": "mountain",
+      "curve": [[0,0.05],[5,0.20],[10,0.40],[20,0.65],[30,0.85],[45,1.0]],
+      "rationale": "Derived by finite-difference gradient on sampled Copernicus DEM elevations. Steep slopes shorten the time to peak discharge and enable debris flow."
+    },
+    "terrain_relief": {
+      "label": "Local terrain relief",
+      "group": "terrain",
+      "unit": "m",
+      "weight": 0.05,
+      "direction": "increasing",
+      "icon": "mountain",
+      "curve": [[0,0.0],[100,0.20],[300,0.45],[600,0.70],[1000,0.90],[1500,1.0]],
+      "rationale": "Elevation range within the sampled neighbourhood. High relief concentrates runoff into narrow valley floors."
+    },
+    "river_proximity": {
+      "label": "Proximity to river network",
+      "group": "hydrological",
+      "unit": "m",
+      "weight": 0.08,
+      "direction": "decreasing",
+      "icon": "river",
+      "curve": [[0,1.0],[100,0.90],[300,0.70],[600,0.50],[1000,0.35],[2000,0.15],[5000,0.02]],
+      "rationale": "True point-to-polyline distance to the nearest OpenStreetMap waterway. Closer to the channel means less warning time and greater inundation depth."
+    },
+    "stream_density": {
+      "label": "Stream network density",
+      "group": "hydrological",
+      "unit": "km/km2",
+      "weight": 0.03,
+      "direction": "increasing",
+      "icon": "river",
+      "curve": [[0,0.0],[0.5,0.20],[1.0,0.40],[2.0,0.65],[3.5,0.85],[5.0,1.0]],
+      "rationale": "Drainage density measured from OpenStreetMap waterway geometry. Denser networks deliver runoff to the outlet faster."
+    },
+    "river_discharge_anomaly": {
+      "label": "River discharge anomaly",
+      "group": "hydrological",
+      "unit": "ratio vs mean",
+      "weight": 0.10,
+      "direction": "increasing",
+      "icon": "river",
+      "curve": [[0.5,0.0],[1.0,0.20],[1.5,0.40],[2.0,0.60],[3.0,0.80],[5.0,1.0]],
+      "rationale": "Current GloFAS modelled river discharge divided by the location's own recent mean discharge. An independent hydrological signal that does not come from the rainfall feed."
+    }
+  },
+  "risk_classes": [
+    { "level": "SAFE",     "min": 0,  "max": 20,  "color": "#16a34a", "icon": "circle",   "label": "Safe" },
+    { "level": "LOW",      "min": 21, "max": 40,  "color": "#eab308", "icon": "circle",   "label": "Low" },
+    { "level": "MODERATE", "min": 41, "max": 60,  "color": "#f97316", "icon": "triangle", "label": "Moderate" },
+    { "level": "HIGH",     "min": 61, "max": 80,  "color": "#dc2626", "icon": "triangle", "label": "High" },
+    { "level": "EXTREME",  "min": 81, "max": 100, "color": "#9333ea", "icon": "hexagon",  "label": "Extreme" }
+  ],
+  "impact_thresholds": {
+    "note": "A contributor's impact label is based on its share of the total raw weighted score.",
+    "high_share": 0.18,
+    "medium_share": 0.09
+  },
+  "confidence_rules": {
+    "note": "Confidence describes DATA QUALITY, not the probability of a flood. It degrades when sources are missing, stale or simulated.",
+    "live_source_bonus": 1.0,
+    "cached_source_factor": 0.75,
+    "demo_source_factor": 0.35,
+    "missing_feature_penalty": 0.06,
+    "stale_after_minutes": 60,
+    "levels": [
+      { "level": "HIGH",   "min_score": 0.8 },
+      { "level": "MEDIUM", "min_score": 0.55 },
+      { "level": "LOW",    "min_score": 0.0 }
+    ]
+  }
+}

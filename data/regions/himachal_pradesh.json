@@ -1,0 +1,50 @@
+{
+  "id": "himachal_pradesh",
+  "name": "Himachal Pradesh",
+  "display_name": "Himachal Pradesh, India",
+  "country": "India",
+  "terrain_type": "Western Himalayan hilly terrain",
+  "timezone": "Asia/Kolkata",
+  "enabled": true,
+  "description": "Western Himalayan state drained by the Beas, Sutlej, Ravi and Chenab systems. Included as a second pilot region to demonstrate that the platform is region-configurable rather than hard-coded to a single geography.",
+  "bbox": { "min_lat": 30.22, "min_lon": 75.47, "max_lat": 33.22, "max_lon": 79.04 },
+  "center": { "latitude": 31.8, "longitude": 77.2 },
+  "default_zoom": 8,
+  "monsoon_months": [6, 7, 8, 9],
+  "elevation_range_m": { "min": 350, "max": 6816 },
+  "rivers": [
+    { "name": "Beas", "type": "river", "note": "Drains the Kullu and Mandi valleys." },
+    { "name": "Sutlej", "type": "river", "note": "Trans-Himalayan river draining Kinnaur and Bilaspur." },
+    { "name": "Ravi", "type": "river", "note": "Drains the Chamba valley." },
+    { "name": "Chenab", "type": "river", "note": "Formed in Lahaul from the Chandra and Bhaga." },
+    { "name": "Spiti", "type": "river", "note": "Cold-desert tributary of the Sutlej." },
+    { "name": "Baspa", "type": "river", "note": "Drains the Sangla valley in Kinnaur." },
+    { "name": "Parvati", "type": "river", "note": "Joins the Beas at Bhuntar." }
+  ],
+  "confluences": ["Bhuntar", "Tattapani", "Karcham"],
+  "monitoring_locations": [
+    { "id": "loc_hp_manali", "name": "Manali", "district": "Kullu", "latitude": 32.2432, "longitude": 77.1892, "reference_elevation_m": 2050, "nearest_river": "Beas", "settlement_type": "town", "exposure": "high" },
+    { "id": "loc_hp_kullu", "name": "Kullu", "district": "Kullu", "latitude": 31.9578, "longitude": 77.1095, "reference_elevation_m": 1279, "nearest_river": "Beas", "settlement_type": "town", "exposure": "high" },
+    { "id": "loc_hp_bhuntar", "name": "Bhuntar", "district": "Kullu", "latitude": 31.8797, "longitude": 77.1524, "reference_elevation_m": 1097, "nearest_river": "Parvati", "settlement_type": "confluence", "exposure": "high" },
+    { "id": "loc_hp_mandi", "name": "Mandi", "district": "Mandi", "latitude": 31.708, "longitude": 76.9319, "reference_elevation_m": 800, "nearest_river": "Beas", "settlement_type": "town", "exposure": "high" },
+    { "id": "loc_hp_shimla", "name": "Shimla", "district": "Shimla", "latitude": 31.1048, "longitude": 77.1734, "reference_elevation_m": 2276, "nearest_river": "Sutlej", "settlement_type": "city", "exposure": "medium" },
+    { "id": "loc_hp_rampur", "name": "Rampur Bushahr", "district": "Shimla", "latitude": 31.45, "longitude": 77.63, "reference_elevation_m": 1005, "nearest_river": "Sutlej", "settlement_type": "town", "exposure": "high" },
+    { "id": "loc_hp_reckongpeo", "name": "Reckong Peo", "district": "Kinnaur", "latitude": 31.54, "longitude": 78.27, "reference_elevation_m": 2290, "nearest_river": "Sutlej", "settlement_type": "town", "exposure": "high" },
+    { "id": "loc_hp_sangla", "name": "Sangla", "district": "Kinnaur", "latitude": 31.42, "longitude": 78.27, "reference_elevation_m": 2700, "nearest_river": "Baspa", "settlement_type": "village", "exposure": "high" },
+    { "id": "loc_hp_dharamshala", "name": "Dharamshala", "district": "Kangra", "latitude": 32.219, "longitude": 76.3234, "reference_elevation_m": 1457, "nearest_river": "Manjhi", "settlement_type": "town", "exposure": "medium" },
+    { "id": "loc_hp_chamba", "name": "Chamba", "district": "Chamba", "latitude": 32.556, "longitude": 76.126, "reference_elevation_m": 996, "nearest_river": "Ravi", "settlement_type": "town", "exposure": "medium" },
+    { "id": "loc_hp_kaza", "name": "Kaza", "district": "Lahaul and Spiti", "latitude": 32.226, "longitude": 78.071, "reference_elevation_m": 3800, "nearest_river": "Spiti", "settlement_type": "village", "exposure": "medium" },
+    { "id": "loc_hp_bilaspur", "name": "Bilaspur", "district": "Bilaspur", "latitude": 31.33, "longitude": 76.76, "reference_elevation_m": 673, "nearest_river": "Sutlej", "settlement_type": "town", "exposure": "medium" }
+  ],
+  "risk_grid": {
+    "rows": 5,
+    "cols": 5,
+    "note": "Discrete monitoring cells over the Beas corridor, matched to gis_query_bbox so every cell has full multi-source coverage.",
+    "bbox": { "min_lat": 31.6, "min_lon": 76.8, "max_lat": 32.45, "max_lon": 77.45 }
+  },
+  "gis_query_bbox": { "min_lat": 31.6, "min_lon": 76.8, "max_lat": 32.45, "max_lon": 77.45 },
+  "attribution": {
+    "elevation_reference_note": "reference_elevation_m values are published approximate settlement elevations, used ONLY as an offline fallback. The system prefers live Copernicus DEM elevation.",
+    "coordinates_note": "Coordinates are approximate settlement centroids used for monitoring purposes."
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "id": "flash_flood_warning",
+  "name": "Flash Flood Warning",
+  "short_name": "Warning",
+  "order": 3,
+  "severity": "severe",
+  "data_kind": "SIMULATION",
+  "description": "Intense convective rainfall on an already saturated catchment. River high and rising quickly.",
+  "narrative": "Rainfall has reached very heavy intensity on ground that is already near saturation, so almost all new rain becomes runoff. Discharge is more than double its recent mean and still climbing. This is the window in which a flash flood becomes likely.",
+  "expected_risk_level": "HIGH",
+  "expected_score_range": [61, 82],
+  "overrides": {
+    "rainfall_intensity": 38.0,
+    "rainfall_3h": 68.0,
+    "rainfall_24h": 150.0,
+    "rainfall_forecast_24h": 120.0,
+    "rainfall_trend": 7.0,
+    "rainfall_anomaly": 95.0,
+    "antecedent_precipitation_index": 90.0,
+    "river_discharge_anomaly": 2.3
+  },
+  "hydrology_label": "High",
+  "water_rise_rate_cm_per_hr": 25.0
+}

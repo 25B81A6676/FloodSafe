@@ -1,0 +1,24 @@
+{
+  "id": "heavy_rain",
+  "name": "Heavy Rainfall",
+  "short_name": "Heavy Rain",
+  "order": 2,
+  "severity": "elevated",
+  "data_kind": "SIMULATION",
+  "description": "Sustained monsoon rainfall over several hours. Catchment wetting up, river level rising but still within banks.",
+  "narrative": "A typical active-monsoon day. Rainfall is in the IMD heavy category, soil is partly saturated and discharge is above average. Not yet a flash-flood situation, but the catchment has lost much of its buffer.",
+  "expected_risk_level": "MODERATE",
+  "expected_score_range": [41, 62],
+  "overrides": {
+    "rainfall_intensity": 12.0,
+    "rainfall_3h": 30.0,
+    "rainfall_24h": 85.0,
+    "rainfall_forecast_24h": 70.0,
+    "rainfall_trend": 2.5,
+    "rainfall_anomaly": 82.0,
+    "antecedent_precipitation_index": 55.0,
+    "river_discharge_anomaly": 1.4
+  },
+  "hydrology_label": "Rising",
+  "water_rise_rate_cm_per_hr": 8.0
+}

@@ -1,0 +1,24 @@
+{
+  "id": "extreme_flash_flood",
+  "name": "Extreme Flash Flood",
+  "short_name": "Extreme",
+  "order": 4,
+  "severity": "extreme",
+  "data_kind": "SIMULATION",
+  "description": "Cloudburst-class rainfall on a saturated catchment with critical river discharge.",
+  "narrative": "Rainfall intensity approaches the IMD cloudburst threshold of 100 mm in one hour. The catchment is fully saturated, discharge is several times the recent mean and rising steeply. In steep Himalayan terrain this combination produces very short warning times and a high likelihood of debris flow.",
+  "expected_risk_level": "EXTREME",
+  "expected_score_range": [81, 100],
+  "overrides": {
+    "rainfall_intensity": 95.0,
+    "rainfall_3h": 115.0,
+    "rainfall_24h": 260.0,
+    "rainfall_forecast_24h": 210.0,
+    "rainfall_trend": 16.0,
+    "rainfall_anomaly": 99.5,
+    "antecedent_precipitation_index": 140.0,
+    "river_discharge_anomaly": 4.2
+  },
+  "hydrology_label": "Critical",
+  "water_rise_rate_cm_per_hr": 65.0
+}
