@@ -215,8 +215,10 @@ export function timeAgo(iso: string | null | undefined): string {
   return `${Math.round(secs / 86400)} d ago`
 }
 
+/** Compact 24-hour label for chart axes. A locale 12-hour string ("04:00 PM")
+ *  is nearly twice as wide and made the time axis collide with itself. */
 export function shortTime(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso.slice(11, 16)
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }

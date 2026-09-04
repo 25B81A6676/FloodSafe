@@ -175,11 +175,13 @@ async def get_map_layers(region_id: str | None = None) -> dict[str, Any]:
         infrastructure = {"features": [], "counts": {}, "freshness": "DEMO",
                           "notes": ["Infrastructure layer unavailable."]}
 
-    # Trim the stream layer for transport: keep the whole river network, and the
-    # longest streams up to a budget, so the map stays responsive.
+    # The whole mapped stream network, longest first. An earlier [:700] budget
+    # meant the layer toggle reported 700 when the region actually has ~1380
+    # streams — a real count should never be a transport artefact. The payload
+    # compresses well and Leaflet renders it to canvas.
     streams = sorted(
         waterways.get("streams", []), key=lambda s: len(s.get("coordinates", [])), reverse=True
-    )[:700]
+    )
 
     return {
         "region_id": region["id"],

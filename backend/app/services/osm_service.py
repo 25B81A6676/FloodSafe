@@ -438,7 +438,11 @@ async def get_region_infrastructure(region: dict[str, Any]) -> dict[str, Any]:
         f'node["place"~"^(city|town|village)$"]{box};'
         f'way["man_made"="bridge"]{box};'
         f'way["bridge"="yes"]["highway"]{box};'
-        ");out center 900;"
+        # No element cap. `out center 900` silently truncated the union at 900
+        # elements, and because bridges come last it cut them roughly in half —
+        # Uttarakhand reported 900 features when the real figure is 1361. The
+        # small categories were complete, so the total looked plausible.
+        ");out center;"
     )
     key = data_cache.make_key("osm-infra", region=region["id"], s=s, w=w, n=n, e=e)
 

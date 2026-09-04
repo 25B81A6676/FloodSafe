@@ -284,8 +284,12 @@ export function Dashboard({
             )}
             {snap && (
               <div className="tiny faint mt6">
-                Source: {snap.weather.source}. Bars left of “now” are observations; bars right are
-                model forecast.
+                <strong>How much rain is falling, hour by hour.</strong> Left of the “now” line is
+                rain that already fell; right of it is the forecast. Taller bar means heavier rain.
+                The IMD calls more than 100 mm in one hour a cloudburst.
+                <br />
+                Vertical axis: millimetres per hour. Horizontal axis: time, 24-hour clock.
+                Source: {snap.weather.source}.
               </div>
             )}
           </Card>
@@ -302,12 +306,17 @@ export function Dashboard({
             )}
             {snap && (
               <div className="tiny faint mt6">
-                {snap.timeline.method}
+                <strong>How the flood risk score has moved, and where it is heading.</strong> The
+                solid line is the score recalculated over rain that actually fell; the dashed line
+                runs the same calculation over the forecast. The faint horizontal lines mark the
+                boundaries between Safe, Low, Moderate, High and Extreme.
+                <br />
+                Vertical axis: risk score out of 100. Horizontal axis: time, 24-hour clock.
                 {snap.risk.mode === 'SIMULATION' && (
                   <>
                     {' '}
-                    The purple line is the active scenario. History is left as it actually
-                    occurred — a simulation changes present conditions, not the past.
+                    The bold purple line is the active scenario. History is left as it actually
+                    happened — a simulation changes present conditions, not the past.
                   </>
                 )}
               </div>
@@ -322,15 +331,19 @@ export function Dashboard({
             {snap ? <DischargeChart hydrology={snap.hydrology} /> : <Skeleton height={170} />}
             {snap && (
               <div className="tiny faint mt6">
-                {snap.hydrology.representative_cell.used_neighbour ? (
+                <strong>How much water the river is actually carrying.</strong> Solid line is the
+                last 30 days, dashed is the next 7. The grey line is this river’s own 30-day
+                average — well above it means the river is swollen. This comes from Copernicus
+                GloFAS and is measured independently of the rainfall above, so when both rise
+                together that is genuine corroboration.
+                <br />
+                Vertical axis: cubic metres per second. Horizontal axis: date.
+                {snap.hydrology.representative_cell.used_neighbour && (
                   <>
-                    Channel cell taken {fmtInt(snap.hydrology.representative_cell.distance_m)} m from
-                    the settlement centroid; the centroid cell itself carries only{' '}
-                    {fmt(snap.hydrology.representative_cell.centre_cell_mean_m3s, 2)} m³/s and is not
-                    the river.
+                    {' '}
+                    Reading taken {fmtInt(snap.hydrology.representative_cell.distance_m)} m away,
+                    where the river channel actually runs.
                   </>
-                ) : (
-                  <>Discharge read from the grid cell containing the settlement.</>
                 )}
               </div>
             )}
@@ -340,7 +353,14 @@ export function Dashboard({
             {snap ? (
               <>
                 <AntecedentChart daily={snap.antecedent.recent_daily} />
-                <div className="tiny faint mt6">{snap.antecedent.method}</div>
+                <div className="tiny faint mt6">
+                  <strong>How wet the ground already is.</strong> Rain over the last two weeks —
+                  recent days count for more than older ones. Saturated ground cannot absorb more,
+                  so almost all new rain runs straight off into the rivers. The same storm is far
+                  more dangerous on wet ground than on dry.
+                  <br />
+                  Vertical axis: millimetres per day. Horizontal axis: date.
+                </div>
               </>
             ) : (
               <Skeleton height={130} />
