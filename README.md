@@ -219,6 +219,22 @@ On first boot the backend warms its cache in the background (terrain, weather,
 GloFAS, OSM, ERA5) so the first dashboard load is fast. Watch the logs for the
 pipeline trace: `FETCH`, `CACHE-HIT`, `CACHE-MISS`, `FALLBACK`, `RISK`, `SIMULATION`.
 
+### Presenting
+
+For a demo, run the production bundle instead of the dev server — it starts
+faster, has no hot-reload interruptions, and does not double-fetch the way React
+StrictMode does in development:
+
+```bash
+npm run build && npm run preview
+```
+
+Open **http://localhost:4173**. The backend still runs on port 8000; the preview
+server proxies `/api` to it.
+
+Let the backend finish its cache warm-up (about 30 seconds, `prefetch complete`
+in the log) before demonstrating, so every panel loads instantly.
+
 ## Demo script (3–5 minutes)
 
 1. **Dashboard** opens on the pilot region with live conditions.
