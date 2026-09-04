@@ -1,22 +1,30 @@
 import type { ReactNode } from 'react'
 import type { Confidence, Freshness, RiskLevel } from '../types'
 
-/* Risk is never communicated by colour alone: every level also carries a
-   distinct glyph and its written name. */
+/* Risk is never communicated by colour alone. Each level carries a distinct
+   glyph AND its written name.
+
+   The glyphs are an ordinal fill ramp — empty circle through full circle —
+   rather than five unrelated shapes. Severity reads as escalation even in
+   greyscale, which matters because the palette's lightness is deliberately
+   non-monotonic (yellow is intrinsically lighter than red). */
 export const RISK_SYMBOL: Record<RiskLevel, string> = {
-  SAFE: '●', // filled circle
-  LOW: '◆', // diamond
-  MODERATE: '▲', // triangle
-  HIGH: '▲', // triangle
-  EXTREME: '⬢', // hexagon
+  SAFE: '○', // empty circle
+  LOW: '◔', // quarter filled
+  MODERATE: '◑', // half filled
+  HIGH: '◕', // three-quarters filled
+  EXTREME: '●', // full circle
 }
 
+/* Resolved from tokens.css so CSS stays the single source of truth for colour.
+   These are kept in sync with the severity scale the backend serves in
+   data/config/risk_weights.json. */
 export const RISK_COLOR: Record<RiskLevel, string> = {
-  SAFE: '#16a34a',
-  LOW: '#eab308',
-  MODERATE: '#f97316',
-  HIGH: '#dc2626',
-  EXTREME: '#9333ea',
+  SAFE: 'var(--status-safe)',
+  LOW: 'var(--status-low)',
+  MODERATE: 'var(--status-moderate)',
+  HIGH: 'var(--status-high)',
+  EXTREME: 'var(--status-extreme)',
 }
 
 export const RISK_ORDER: RiskLevel[] = ['SAFE', 'LOW', 'MODERATE', 'HIGH', 'EXTREME']
@@ -49,12 +57,14 @@ export function Card({
   )
 }
 
-const FRESHNESS_META: Record<Freshness, { cls: string; label: string; pulse: boolean }> = {
-  LIVE: { cls: 'badge-live', label: 'Live', pulse: true },
-  CACHED: { cls: 'badge-cached', label: 'Cached', pulse: false },
-  STALE_CACHE: { cls: 'badge-stale', label: 'Stale cache', pulse: false },
-  DEMO: { cls: 'badge-demo', label: 'Demo data', pulse: false },
-  SIMULATION: { cls: 'badge-sim', label: 'Simulation', pulse: true },
+/* No pulse/blink state. The data is polled and cached, not streamed, so an
+   animated 'live' indicator would overstate what the feed actually does. */
+const FRESHNESS_META: Record<Freshness, { cls: string; label: string }> = {
+  LIVE: { cls: 'badge-live', label: 'Live' },
+  CACHED: { cls: 'badge-cached', label: 'Cached' },
+  STALE_CACHE: { cls: 'badge-stale', label: 'Stale cache' },
+  DEMO: { cls: 'badge-demo', label: 'Demo data' },
+  SIMULATION: { cls: 'badge-sim', label: 'Simulation' },
 }
 
 export function FreshnessBadge({
@@ -78,7 +88,7 @@ export function FreshnessBadge({
 
   return (
     <span
-      className={`badge ${meta.cls} ${meta.pulse ? 'badge-pulse' : ''}`}
+      className={`badge ${meta.cls}`}
       title={`Data state: ${meta.label}${age ? ` - updated ${age}` : ''}`}
     >
       <span className="dot" />
@@ -95,7 +105,7 @@ export function RiskPill({ level, score }: { level: RiskLevel; score?: number })
         {RISK_SYMBOL[level]}
       </span>
       {level}
-      {score != null && <span style={{ marginLeft: 'auto', fontFamily: 'var(--mono)' }}>{score}</span>}
+      {score != null && <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)' }}>{score}</span>}
     </span>
   )
 }
@@ -157,10 +167,10 @@ export function ErrorBox({ error, onRetry }: { error: string; onRetry?: () => vo
   return (
     <div className="error-box">
       <h3>Could not load data</h3>
-      <p style={{ margin: '0 0 4px' }}>{error}</p>
+      <p style={{ margin: '0 0 var(--space-2xs)' }}>{error}</p>
       {offline && (
         <>
-          <p className="small" style={{ margin: '8px 0 0' }}>
+          <p className="small" style={{ margin: 'var(--space-xs) 0 0' }}>
             Start the backend from the project root:
           </p>
           <code>cd backend &amp;&amp; python -m uvicorn app.main:app --port 8000</code>

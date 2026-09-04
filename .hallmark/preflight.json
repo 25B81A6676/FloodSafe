@@ -1,0 +1,14 @@
+{
+  "scanned": "2026-09-04",
+  "framework": "React 18 + Vite 5 + TypeScript (strict)",
+  "font_stack": "Space Grotesk 700 / IBM Plex Sans 400-600 / JetBrains Mono 400-700, loaded in frontend/index.html",
+  "palette": "OKLCH custom properties in frontend/tokens.css (anchor hue 256, dark paper L14%)",
+  "motion": "no motion library - CSS transitions only, named easings in tokens.css",
+  "spacing": "4pt --space-* scale in frontend/tokens.css",
+  "tokens_file": "frontend/tokens.css (imported by src/main.tsx before src/styles/index.css)",
+  "notes": [
+    "Severity scale is data encoding, not accent colour. It is mirrored in data/config/risk_weights.json and must stay in sync with the --status-* tokens.",
+    "Leaflet runs with preferCanvas and Recharts writes SVG attributes; neither resolves var(). Both read computed values via src/hooks/useDesignTokens.ts - that is the only sanctioned place to do so.",
+    "Stated deviation: UI chrome floors at 12px for operational density; all prose is >= 16px."
+  ]
+}

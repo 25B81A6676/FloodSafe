@@ -1,0 +1,162 @@
+/* Hallmark · FloodSafe design tokens
+ * theme: custom · vibe: "instrument panel, hairline-ruled, signal-only colour"
+ * axes: dark / grotesk-sans / cool · anchor hue 256
+ *
+ * Every value below is measured, not eyeballed. Contrast ratios in the comments
+ * are WCAG 2.1 against the surface named, computed during construction.
+ * Nothing in the application may declare a colour, font, duration or easing
+ * that is not defined here.
+ */
+
+:root {
+  /* ---------------------------------------------------------------- surfaces
+   * Dark-mode recipe: paper L 12-18%, elevation ascends in LIGHTNESS (never
+   * darker), every neutral tinted toward the 256 anchor so nothing is flat grey.
+   */
+  --color-paper:       oklch(14%   0.012 256);  /* app canvas                */
+  --color-paper-2:     oklch(17.5% 0.014 256);  /* panel surface             */
+  --color-paper-3:     oklch(21%   0.015 256);  /* inputs, hover, raised     */
+  --color-paper-4:     oklch(25%   0.016 256);  /* popovers, map overlays    */
+
+  /* ---------------------------------------------------------------- rules
+   * `rule` and `rule-2` are decorative dividers (WCAG 1.4.11 exempt).
+   * `rule-strong` is for anything that identifies an interactive component
+   * — input, select and button borders — and clears 3:1 on paper-2 (3.30:1)
+   * and paper-3 (3.08:1).
+   */
+  --color-rule:        oklch(30%   0.014 256);
+  --color-rule-2:      oklch(25%   0.013 256);
+  --color-rule-strong: oklch(51%   0.014 256);
+
+  /* ---------------------------------------------------------------- text ramp
+   * Contrast against paper-2, the surface most text sits on.
+   */
+  --color-neutral:     oklch(59%   0.014 256);  /*  4.62:1 — axis labels, tertiary */
+  --color-muted:       oklch(70%   0.012 256);  /*  7.10:1 — labels, secondary     */
+  --color-ink-2:       oklch(87%   0.012 256);  /* 12.80:1 — body                  */
+  --color-ink:         oklch(94%   0.010 256);  /* 15.91:1 — headings, values      */
+
+  /* ---------------------------------------------------------------- the one signal
+   * Cobalt at hue 256. Focus rings, active nav, link hover, selected row,
+   * slider thumbs. Never a section fill. Target < 3% of any viewport.
+   */
+  --color-accent:      oklch(66%   0.17  256);  /* 6.04:1 on paper-2 */
+  --color-accent-ink:  oklch(16%   0.020 256);  /* 6.18:1 on accent  */
+  --color-focus:       oklch(70%   0.155 256);  /* 7.06:1 on paper-2 */
+
+  /* ---------------------------------------------------------------- severity scale
+   * NOT accents — this is ordinal data encoding, kept in sync with
+   * data/config/risk_weights.json. Hues are held exactly where they were as
+   * hex so no meaning shifts; only lightness and chroma moved for the dark
+   * canvas. Every step clears 4.5:1 on paper-2.
+   *
+   * Lightness is deliberately NOT monotonic across the ramp (yellow is
+   * intrinsically light), so severity is carried by hue + glyph, never by
+   * lightness and never by colour alone.
+   */
+  --status-safe:       oklch(62.7% 0.145 149.2);  /*  5.70:1 */
+  --status-low:        oklch(79.5% 0.137  86.0);  /*  9.91:1 */
+  --status-moderate:   oklch(70.5% 0.162  47.6);  /*  6.84:1 */
+  --status-high:       oklch(61.2% 0.190  27.3);  /*  4.60:1 */
+  --status-extreme:    oklch(61.8% 0.227 302.3);  /*  4.64:1 */
+
+  /* Text placed ON a severity fill. Every step clears 4.5:1 with dark ink. */
+  --status-ink:        oklch(16%   0.020 256);
+
+  /* ---------------------------------------------------------------- freshness
+   * Data-provenance states. Deliberately distinct from the severity ramp so a
+   * stale reading never reads as a risk level.
+   */
+  --state-live:        oklch(70%   0.150 152);
+  --state-cached:      oklch(72%   0.120 232);
+  --state-stale:       oklch(78%   0.140  70);
+  --state-demo:        oklch(66%   0.020 256);
+  --state-sim:         oklch(70%   0.170 305);
+
+  /* ---------------------------------------------------------------- type
+   * 2+1: one display, one body, one outlier. The mono outlier is capped at
+   * exactly two roles — numeric readouts, and status/meta labels.
+   */
+  --font-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-body:    "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  /* Scale — ratio 1.25 from a 16px reading base.
+   *
+   * DEVIATION, stated: --text-xs and --text-ui sit below the base as a UI
+   * sub-scale for dense operational chrome. The floor is 12px; the previous
+   * build went down to 8px. All prose (alerts, notices, methodology) uses
+   * --text-base (16px) or larger, which is fully compliant.
+   */
+  --text-xs:      0.75rem;    /* 12px — labels, chips, legends. HARD FLOOR */
+  --text-sm:      0.8125rem;  /* 13px — table cells, meta                 */
+  --text-ui:      0.875rem;   /* 14px — UI default                        */
+  --text-base:    1rem;       /* 16px — prose                             */
+  --text-md:      1.25rem;    /* 20px                                     */
+  --text-lg:      1.5625rem;  /* 25px                                     */
+  --text-xl:      1.9531rem;  /* 31.25px                                  */
+  --text-2xl:     2.4414rem;  /* 39px                                     */
+  --text-display: clamp(2.4414rem, 1.6rem + 3.2vw, 3.0518rem);
+
+  --lh-tight: 1.1;
+  --lh-body:  1.55;
+  --tracking-display: -0.025em;
+  --tracking-label:    0.085em;
+
+  /* ---------------------------------------------------------------- space (4pt) */
+  --space-3xs: 0.125rem;  /*   2px */
+  --space-2xs: 0.25rem;   /*   4px */
+  --space-xs:  0.5rem;    /*   8px */
+  --space-sm:  0.75rem;   /*  12px */
+  --space-md:  1rem;      /*  16px */
+  --space-lg:  1.5rem;    /*  24px */
+  --space-xl:  2.5rem;    /*  40px */
+  --space-2xl: 4rem;      /*  64px */
+  --space-3xl: 6rem;      /*  96px */
+
+  /* ---------------------------------------------------------------- geometry
+   * Tight technical radii, drawn with a ruler. Pill is for badges only.
+   */
+  --radius-sm:   4px;
+  --radius:      6px;
+  --radius-lg:   10px;
+  --radius-pill: 999px;
+
+  --rule-width: 1px;
+
+  /* ---------------------------------------------------------------- motion
+   * Three named easings, three durations. Browser-default `ease` is banned.
+   */
+  --ease-out:    cubic-bezier(0.16, 1,    0.3,  1);
+  --ease-in:     cubic-bezier(0.7,  0,    0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0,    0.35, 1);
+
+  --dur-micro: 120ms;
+  --dur-short: 220ms;
+  --dur-long:  420ms;
+
+  /* ---------------------------------------------------------------- layering
+   * Named scale — no freestyled numbers. --z-sticky-nav sits above in-page
+   * sticky elements so the console bar always wins over a sticky table head.
+   */
+  --z-base:       1;
+  --z-raised:     10;
+  /* Leaflet positions its own panes at 200-800 inside the map container and
+     those compete in the same stacking context, so map overlays (legend,
+     layer toggles) need a level above that range but below page chrome. */
+  --z-map-overlay: 810;
+  --z-dropdown:   100;
+  --z-sticky:     200;
+  --z-sticky-nav: 300;
+  --z-modal:      400;
+  --z-toast:      500;
+  --z-tooltip:    600;
+
+  /* Height of the console bar. Sticky in-page headers offset by this. */
+  --banner-height: 3.5rem;
+
+  /* ---------------------------------------------------------------- depth
+   * One shadow, used sparingly. Depth comes from hairlines and lightness.
+   */
+  --shadow-lift: 0 1px 2px oklch(4% 0.01 256 / 0.55);
+}

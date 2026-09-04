@@ -1,0 +1,14 @@
+[
+  {
+    "date": "2026-09-04",
+    "macrostructure": "Map/Diagram",
+    "theme": "custom",
+    "theme_axes": "dark / grotesk-sans / cool",
+    "vibe": "instrument panel, hairline-ruled, signal-only colour",
+    "genre": "modern-minimal",
+    "nav": "N1b (always-solid)",
+    "footer": "Ft2",
+    "enrichment": "none",
+    "brief": "FloodSafe - SIH26192 flash-flood operations console (visual-layer pass on an existing app)"
+  }
+]

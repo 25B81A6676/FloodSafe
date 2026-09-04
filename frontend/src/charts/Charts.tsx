@@ -13,20 +13,28 @@ import {
 } from 'recharts'
 import type { Hydrology, TimelinePoint, WeatherSeriesPoint } from '../types'
 import { shortTime } from '../components/ui'
+import { useDesignTokens, type DesignTokens } from '../hooks/useDesignTokens'
 
-const AXIS = { stroke: '#5b6f91', fontSize: 10 }
-const GRID = '#22334f'
+/* Every colour and size below comes from useDesignTokens, which resolves
+   tokens.css. Nothing in this file declares a colour of its own. */
 
-const tooltipStyle = {
+const axisProps = (t: DesignTokens) => ({ stroke: t.axis, fontSize: t.fontXs })
+
+const tooltipProps = (t: DesignTokens) => ({
   contentStyle: {
-    background: '#121d33',
-    border: '1px solid #2f4468',
-    borderRadius: 8,
-    fontSize: 12,
+    background: t.tooltipBg,
+    border: `1px solid ${t.tooltipBorder}`,
+    borderRadius: 6,
+    fontSize: t.fontSm,
   },
-  labelStyle: { color: '#b3c3dd', fontSize: 11 },
-  itemStyle: { fontSize: 12 },
-}
+  labelStyle: { color: t.tooltipLabel, fontSize: t.fontXs },
+  itemStyle: { fontSize: t.fontSm },
+  cursor: { fill: t.grid, fillOpacity: 0.35 },
+})
+
+const legendProps = (t: DesignTokens) => ({
+  wrapperStyle: { fontSize: t.fontXs, paddingTop: 4, color: t.axis },
+})
 
 /** Observed hourly rainfall (past 24 h) and forecast rainfall (next 24 h). */
 export function RainfallChart({
@@ -38,6 +46,7 @@ export function RainfallChart({
   forecast: WeatherSeriesPoint[]
   height?: number
 }) {
+  const t = useDesignTokens()
   const recent = past.slice(-24)
   const data = [
     ...recent.map((p) => ({
@@ -57,22 +66,27 @@ export function RainfallChart({
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <ComposedChart data={data} margin={{ top: 6, right: 8, left: -22, bottom: 0 }}>
-        <CartesianGrid stroke={GRID} strokeDasharray="2 4" vertical={false} />
-        <XAxis dataKey="time" tick={AXIS} interval={Math.max(2, Math.floor(data.length / 8))} tickLine={false} axisLine={{ stroke: GRID }} />
-        <YAxis tick={AXIS} tickLine={false} axisLine={false} width={44} label={{ value: 'mm/h', angle: -90, position: 'insideLeft', fill: '#5b6f91', fontSize: 10, offset: 14 }} />
-        <Tooltip {...tooltipStyle} formatter={(v) => (v == null ? '—' : `${v} mm`)} />
-        <Legend wrapperStyle={{ fontSize: 11, paddingTop: 4 }} />
+      <ComposedChart
+        data={data}
+        margin={{ top: 6, right: 8, left: -22, bottom: 0 }}
+        role="img"
+        aria-label="Hourly rainfall: observed over the past 24 hours and forecast for the next 24 hours, in millimetres per hour"
+      >
+        <CartesianGrid stroke={t.grid} strokeDasharray="2 4" vertical={false} />
+        <XAxis dataKey="time" tick={axisProps(t)} interval={Math.max(2, Math.floor(data.length / 8))} tickLine={false} axisLine={{ stroke: t.grid }} />
+        <YAxis tick={axisProps(t)} tickLine={false} axisLine={false} width={44} label={{ value: 'mm/h', angle: -90, position: 'insideLeft', fill: t.axis, fontSize: t.fontXs, offset: 14 }} />
+        <Tooltip {...tooltipProps(t)} formatter={(v) => (v == null ? '—' : `${v} mm`)} />
+        <Legend {...legendProps(t)} />
         {recent.length > 0 && (
           <ReferenceLine
             x={data[recent.length - 1]?.time}
-            stroke="#7d92b4"
+            stroke={t.marker}
             strokeDasharray="3 3"
-            label={{ value: 'now', fill: '#7d92b4', fontSize: 9, position: 'top' }}
+            label={{ value: 'now', fill: t.marker, fontSize: t.fontXs, position: 'top' }}
           />
         )}
-        <Bar dataKey="observed" name="Observed" fill="#38bdf8" radius={[2, 2, 0, 0]} maxBarSize={14} />
-        <Bar dataKey="forecast" name="Forecast" fill="#a855f7" fillOpacity={0.55} radius={[2, 2, 0, 0]} maxBarSize={14} />
+        <Bar dataKey="observed" name="Observed" fill={t.primary} radius={[2, 2, 0, 0]} maxBarSize={14} />
+        <Bar dataKey="forecast" name="Forecast" fill={t.projected} fillOpacity={0.6} radius={[2, 2, 0, 0]} maxBarSize={14} />
       </ComposedChart>
     </ResponsiveContainer>
   )
@@ -94,6 +108,7 @@ export function RiskTrendChart({
   simulatedScore?: number | null
   height?: number
 }) {
+  const t = useDesignTokens()
   const data = [
     ...past.map((p) => ({ time: shortTime(p.time), modelled: p.risk_score, projected: null as number | null })),
     ...forecast.map((p, i) => ({
@@ -108,26 +123,31 @@ export function RiskTrendChart({
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <ComposedChart data={data} margin={{ top: 6, right: 8, left: -22, bottom: 0 }}>
+      <ComposedChart
+        data={data}
+        margin={{ top: 6, right: 8, left: -22, bottom: 0 }}
+        role="img"
+        aria-label="Flash-flood risk score over time, modelled from observed rainfall and projected from the forecast, on a scale of 0 to 100"
+      >
         <defs>
           <linearGradient id="riskFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.35} />
-            <stop offset="100%" stopColor="#38bdf8" stopOpacity={0.02} />
+            <stop offset="0%" stopColor={t.primary} stopOpacity={0.3} />
+            <stop offset="100%" stopColor={t.primary} stopOpacity={0.02} />
           </linearGradient>
         </defs>
-        <CartesianGrid stroke={GRID} strokeDasharray="2 4" vertical={false} />
-        <XAxis dataKey="time" tick={AXIS} interval={Math.max(2, Math.floor(data.length / 8))} tickLine={false} axisLine={{ stroke: GRID }} />
-        <YAxis domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} tick={AXIS} tickLine={false} axisLine={false} width={44} />
-        <Tooltip {...tooltipStyle} formatter={(v) => (v == null ? '—' : `${v} / 100`)} />
-        <Legend wrapperStyle={{ fontSize: 11, paddingTop: 4 }} />
+        <CartesianGrid stroke={t.grid} strokeDasharray="2 4" vertical={false} />
+        <XAxis dataKey="time" tick={axisProps(t)} interval={Math.max(2, Math.floor(data.length / 8))} tickLine={false} axisLine={{ stroke: t.grid }} />
+        <YAxis domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} tick={axisProps(t)} tickLine={false} axisLine={false} width={52} />
+        <Tooltip {...tooltipProps(t)} formatter={(v) => (v == null ? '—' : `${v} / 100`)} />
+        <Legend {...legendProps(t)} />
 
         {/* Risk-class bands, so the line is readable without reading numbers. */}
-        <ReferenceLine y={20} stroke="#16a34a" strokeDasharray="2 5" strokeOpacity={0.55} />
-        <ReferenceLine y={40} stroke="#eab308" strokeDasharray="2 5" strokeOpacity={0.55} />
-        <ReferenceLine y={60} stroke="#f97316" strokeDasharray="2 5" strokeOpacity={0.55} />
-        <ReferenceLine y={80} stroke="#dc2626" strokeDasharray="2 5" strokeOpacity={0.55} />
+        <ReferenceLine y={20} stroke={t.safe} strokeDasharray="2 5" strokeOpacity={0.5} />
+        <ReferenceLine y={40} stroke={t.low} strokeDasharray="2 5" strokeOpacity={0.5} />
+        <ReferenceLine y={60} stroke={t.moderate} strokeDasharray="2 5" strokeOpacity={0.5} />
+        <ReferenceLine y={80} stroke={t.high} strokeDasharray="2 5" strokeOpacity={0.5} />
         {past.length > 0 && (
-          <ReferenceLine x={data[past.length - 1]?.time} stroke="#7d92b4" strokeDasharray="3 3" label={{ value: 'now', fill: '#7d92b4', fontSize: 9, position: 'top' }} />
+          <ReferenceLine x={data[past.length - 1]?.time} stroke={t.marker} strokeDasharray="3 3" label={{ value: 'now', fill: t.marker, fontSize: t.fontXs, position: 'top' }} />
         )}
 
         {/* A scenario cannot rewrite what actually happened, so the simulated
@@ -135,20 +155,20 @@ export function RiskTrendChart({
         {simulatedScore != null && (
           <ReferenceLine
             y={simulatedScore}
-            stroke="#a855f7"
+            stroke={t.projected}
             strokeWidth={2}
             label={{
               value: `scenario ${simulatedScore}`,
-              fill: '#d8b4fe',
-              fontSize: 10,
+              fill: t.scenarioLabel,
+              fontSize: t.fontXs,
               position: 'insideTopLeft',
             }}
           />
         )}
 
         <Area type="monotone" dataKey="modelled" stroke="none" fill="url(#riskFill)" connectNulls />
-        <Line type="monotone" dataKey="modelled" name="Modelled" stroke="#38bdf8" strokeWidth={2} dot={false} connectNulls />
-        <Line type="monotone" dataKey="projected" name="Projected" stroke="#a855f7" strokeWidth={2} strokeDasharray="5 3" dot={false} connectNulls />
+        <Line type="monotone" dataKey="modelled" name="Modelled" stroke={t.primary} strokeWidth={2} dot={false} connectNulls />
+        <Line type="monotone" dataKey="projected" name="Projected" stroke={t.projected} strokeWidth={2} strokeDasharray="5 3" dot={false} connectNulls />
       </ComposedChart>
     </ResponsiveContainer>
   )
@@ -156,6 +176,7 @@ export function RiskTrendChart({
 
 /** GloFAS river discharge: 30 days observed plus a 7-day forecast. */
 export function DischargeChart({ hydrology, height = 170 }: { hydrology: Hydrology; height?: number }) {
+  const t = useDesignTokens()
   const data = hydrology.series.map((p) => ({
     date: p.date?.slice(5) ?? '',
     observed: p.kind === 'observed' ? p.discharge : null,
@@ -168,22 +189,27 @@ export function DischargeChart({ hydrology, height = 170 }: { hydrology: Hydrolo
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <ComposedChart data={data} margin={{ top: 6, right: 8, left: -14, bottom: 0 }}>
-        <CartesianGrid stroke={GRID} strokeDasharray="2 4" vertical={false} />
-        <XAxis dataKey="date" tick={AXIS} interval={Math.max(3, Math.floor(data.length / 7))} tickLine={false} axisLine={{ stroke: GRID }} />
-        <YAxis tick={AXIS} tickLine={false} axisLine={false} width={54} label={{ value: 'm³/s', angle: -90, position: 'insideLeft', fill: '#5b6f91', fontSize: 10, offset: 18 }} />
-        <Tooltip {...tooltipStyle} formatter={(v) => (v == null ? '—' : `${v} m³/s`)} />
-        <Legend wrapperStyle={{ fontSize: 11, paddingTop: 4 }} />
+      <ComposedChart
+        data={data}
+        margin={{ top: 6, right: 8, left: -14, bottom: 0 }}
+        role="img"
+        aria-label="Modelled river discharge in cubic metres per second: 30 days observed and a 7-day forecast, against the 30-day mean"
+      >
+        <CartesianGrid stroke={t.grid} strokeDasharray="2 4" vertical={false} />
+        <XAxis dataKey="date" tick={axisProps(t)} interval={Math.max(3, Math.floor(data.length / 7))} tickLine={false} axisLine={{ stroke: t.grid }} />
+        <YAxis tick={axisProps(t)} tickLine={false} axisLine={false} width={54} label={{ value: 'm³/s', angle: -90, position: 'insideLeft', fill: t.axis, fontSize: t.fontXs, offset: 18 }} />
+        <Tooltip {...tooltipProps(t)} formatter={(v) => (v == null ? '—' : `${v} m³/s`)} />
+        <Legend {...legendProps(t)} />
         {hydrology.mean_30d_m3s != null && (
           <ReferenceLine
             y={hydrology.mean_30d_m3s}
-            stroke="#7d92b4"
+            stroke={t.marker}
             strokeDasharray="4 4"
-            label={{ value: '30-day mean', fill: '#7d92b4', fontSize: 9, position: 'insideTopRight' }}
+            label={{ value: '30-day mean', fill: t.marker, fontSize: t.fontXs, position: 'insideTopRight' }}
           />
         )}
-        <Line type="monotone" dataKey="observed" name="Observed" stroke="#22d3ee" strokeWidth={2} dot={false} connectNulls />
-        <Line type="monotone" dataKey="forecast" name="Forecast" stroke="#a855f7" strokeWidth={2} strokeDasharray="5 3" dot={false} connectNulls />
+        <Line type="monotone" dataKey="observed" name="Observed" stroke={t.discharge} strokeWidth={2} dot={false} connectNulls />
+        <Line type="monotone" dataKey="forecast" name="Forecast" stroke={t.projected} strokeWidth={2} strokeDasharray="5 3" dot={false} connectNulls />
       </ComposedChart>
     </ResponsiveContainer>
   )
@@ -197,16 +223,22 @@ export function AntecedentChart({
   daily: { date: string; precipitation_mm: number }[]
   height?: number
 }) {
+  const t = useDesignTokens()
   if (!daily?.length) return <div className="empty">No antecedent rainfall available.</div>
   const data = daily.map((d) => ({ date: d.date.slice(5), mm: d.precipitation_mm }))
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <ComposedChart data={data} margin={{ top: 4, right: 8, left: -24, bottom: 0 }}>
-        <CartesianGrid stroke={GRID} strokeDasharray="2 4" vertical={false} />
-        <XAxis dataKey="date" tick={AXIS} interval={1} tickLine={false} axisLine={{ stroke: GRID }} />
-        <YAxis tick={AXIS} tickLine={false} axisLine={false} width={44} />
-        <Tooltip {...tooltipStyle} formatter={(v) => `${v} mm`} />
-        <Bar dataKey="mm" fill="#0ea5e9" radius={[2, 2, 0, 0]} maxBarSize={16} />
+      <ComposedChart
+        data={data}
+        margin={{ top: 4, right: 8, left: -24, bottom: 0 }}
+        role="img"
+        aria-label="Daily rainfall in millimetres over the previous 14 days, the input to the antecedent precipitation index"
+      >
+        <CartesianGrid stroke={t.grid} strokeDasharray="2 4" vertical={false} />
+        <XAxis dataKey="date" tick={axisProps(t)} interval={1} tickLine={false} axisLine={{ stroke: t.grid }} />
+        <YAxis tick={axisProps(t)} tickLine={false} axisLine={false} width={44} />
+        <Tooltip {...tooltipProps(t)} formatter={(v) => `${v} mm`} />
+        <Bar dataKey="mm" fill={t.primary} radius={[2, 2, 0, 0]} maxBarSize={16} />
       </ComposedChart>
     </ResponsiveContainer>
   )

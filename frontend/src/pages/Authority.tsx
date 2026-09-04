@@ -43,7 +43,7 @@ export function Authority({
   }
   if (!data) {
     return (
-      <div className="grid" style={{ gap: 14 }}>
+      <div className="grid" style={{ gap: 'var(--space-sm)' }}>
         <Skeleton height={90} />
         <Skeleton height={520} />
       </div>
@@ -54,7 +54,7 @@ export function Authority({
   const exposure = data.exposure
 
   return (
-    <div className="grid" style={{ gap: 14 }}>
+    <div className="grid" style={{ gap: 'var(--space-sm)' }}>
       {/* headline counters */}
       <div className="stat-strip">
         <div className="stat">
@@ -64,7 +64,7 @@ export function Authority({
         {RISK_ORDER.map((lvl) => (
           <div className="stat" key={lvl}>
             <div className="stat-num" style={{ color: RISK_COLOR[lvl] }}>
-              <span aria-hidden style={{ fontSize: 13, marginRight: 4 }}>
+              <span aria-hidden style={{ fontSize: 'var(--text-sm)', marginRight: 'var(--space-2xs)' }}>
                 {RISK_SYMBOL[lvl]}
               </span>
               {data.totals.distribution[lvl]}
@@ -73,7 +73,7 @@ export function Authority({
           </div>
         ))}
         <div className="stat">
-          <div className="stat-num" style={{ color: data.alerts.actionable ? 'var(--moderate)' : undefined }}>
+          <div className="stat-num" style={{ color: data.alerts.actionable ? 'var(--status-moderate)' : undefined }}>
             {data.alerts.actionable}
           </div>
           <div className="stat-lbl">Active advisories</div>
@@ -151,7 +151,18 @@ export function Authority({
                       className={selected === l.location_id ? 'selected' : ''}
                       onClick={() => setSelected(l.location_id)}
                       onDoubleClick={() => onSelectLocation(l.location_id)}
-                      title="Click to highlight, double-click to open in the dashboard"
+                      /* Rows are actionable, so they must be reachable by keyboard:
+                         Enter highlights, Shift+Enter opens in the dashboard. */
+                      tabIndex={0}
+                      aria-selected={selected === l.location_id}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          if (e.shiftKey) onSelectLocation(l.location_id)
+                          else setSelected(l.location_id)
+                        }
+                      }}
+                      title="Click or press Enter to highlight; double-click or Shift+Enter to open in the dashboard"
                     >
                       <td>
                         <strong>{l.name}</strong>
@@ -196,10 +207,10 @@ export function Authority({
                 No advisories above INFO. All monitored locations are within routine conditions.
               </div>
             ) : (
-              <div className="grid" style={{ gap: 10 }}>
+              <div className="grid" style={{ gap: 'var(--space-xs)' }}>
                 {data.alerts.actionable_alerts.slice(0, 6).map((a) => (
                   <div key={a.id} onClick={() => setSelected(a.location_id)} style={{ cursor: 'pointer' }}>
-                    <div className="tiny muted" style={{ marginBottom: 3 }}>
+                    <div className="tiny muted" style={{ marginBottom: 'var(--space-2xs)' }}>
                       {a.location_name}
                     </div>
                     <AlertPanel alert={a} compact />
@@ -261,7 +272,7 @@ export function Authority({
               <div className="empty">OpenStreetMap infrastructure layer unavailable.</div>
             ) : (
               <>
-                <div className="row wrap" style={{ gap: 7 }}>
+                <div className="row wrap" style={{ gap: 'var(--space-2xs)' }}>
                   {Object.entries(infraCounts).map(([kind, n]) => (
                     <span key={kind} className="badge badge-neutral" style={{ textTransform: 'none' }}>
                       {kind}: <strong>{n}</strong>
@@ -274,7 +285,7 @@ export function Authority({
                       {exposure.total} facilities within {exposure.radius_km} km of a HIGH or
                       EXTREME location
                     </strong>
-                    <div className="row wrap mt6" style={{ gap: 6 }}>
+                    <div className="row wrap mt6" style={{ gap: 'var(--space-2xs)' }}>
                       {Object.entries(exposure.counts).map(([kind, n]) => (
                         <span key={kind} className="chip">
                           {kind} {n}

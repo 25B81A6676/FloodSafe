@@ -17,10 +17,10 @@ interface Props {
 }
 
 const SEVERITY_TINT: Record<string, string> = {
-  baseline: 'var(--safe)',
-  elevated: 'var(--low)',
-  severe: 'var(--high)',
-  extreme: 'var(--extreme)',
+  baseline: 'var(--status-safe)',
+  elevated: 'var(--status-low)',
+  severe: 'var(--status-high)',
+  extreme: 'var(--status-extreme)',
 }
 
 export function SimulationPanel({
@@ -86,7 +86,7 @@ export function SimulationPanel({
         <h3>Flash-flood simulator</h3>
         <div className="spacer" />
         {active ? (
-          <span className="badge badge-sim badge-pulse">
+          <span className="badge badge-sim">
             <span className="dot" />
             Active
           </span>
@@ -109,7 +109,7 @@ export function SimulationPanel({
               title={s.description}
               style={
                 activeScenarioId === s.id
-                  ? { borderColor: SEVERITY_TINT[s.severity] ?? 'var(--sim)' }
+                  ? { borderColor: SEVERITY_TINT[s.severity] ?? 'var(--state-sim)' }
                   : undefined
               }
             >
@@ -119,7 +119,7 @@ export function SimulationPanel({
           ))}
         </div>
 
-        <div className="row" style={{ gap: 8, marginTop: 11 }}>
+        <div className="row" style={{ gap: 'var(--space-xs)', marginTop: 'var(--space-sm)' }}>
           <button
             className="btn btn-danger btn-block"
             onClick={() => extreme && onRunScenario(extreme.id)}
@@ -143,7 +143,7 @@ export function SimulationPanel({
                 +{readouts.water_rise_rate_cm_per_hr.toFixed(1)} cm/h
               </span>
             </div>
-            <div className="tiny" style={{ marginTop: 4, opacity: 0.85 }}>
+            <div className="tiny" style={{ marginTop: 'var(--space-2xs)', opacity: 0.85 }}>
               {readouts.note}
             </div>
           </div>
@@ -158,7 +158,7 @@ export function SimulationPanel({
                   <label className="slider-label" htmlFor={`sim-${c.key}`} title={c.help}>
                     {c.label}
                     {c.model_weight != null && (
-                      <span className="faint mono" style={{ fontSize: 10, marginLeft: 5 }}>
+                      <span className="faint mono" style={{ fontSize: 'var(--text-xs)', marginLeft: 'var(--space-2xs)' }}>
                         w={c.model_weight.toFixed(2)}
                       </span>
                     )}

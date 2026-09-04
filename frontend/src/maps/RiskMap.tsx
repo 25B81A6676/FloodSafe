@@ -18,6 +18,7 @@ import type {
   RiskMap as RiskMapData,
 } from '../types'
 import { RISK_COLOR, RISK_SYMBOL, fmt, fmtInt } from '../components/ui'
+import { useDesignTokens } from '../hooks/useDesignTokens'
 
 interface Props {
   riskMap: RiskMapData | null
@@ -64,11 +65,13 @@ function ScrollZoomGuard({ onArmedChange }: { onArmedChange: (armed: boolean) =>
   return null
 }
 
-const INFRA_STYLE: Record<string, { color: string; label: string; symbol: string }> = {
-  hospital: { color: '#f87171', label: 'Hospital', symbol: 'H' },
-  school: { color: '#fbbf24', label: 'School', symbol: 'S' },
-  bridge: { color: '#e879f9', label: 'Bridge', symbol: 'B' },
-  settlement: { color: '#94a3b8', label: 'Settlement', symbol: '•' },
+/* Facility labels are static; their colours are resolved from tokens at render
+   time because Leaflet paints to canvas, where var() does not resolve. */
+const INFRA_LABEL: Record<string, { label: string; symbol: string }> = {
+  hospital: { label: 'Hospital', symbol: 'H' },
+  school: { label: 'School', symbol: 'S' },
+  bridge: { label: 'Bridge', symbol: 'B' },
+  settlement: { label: 'Settlement', symbol: '•' },
 }
 
 export function RiskMap({
@@ -89,17 +92,19 @@ export function RiskMap({
     infrastructure: false,
   })
   const [zoomArmed, setZoomArmed] = useState(false)
+  // Leaflet renders to canvas — it needs computed colours, not var() refs.
+  const t = useDesignTokens()
 
   const legend: RiskClass[] = useMemo(
     () =>
       riskMap?.legend ?? [
-        { level: 'SAFE', min: 0, max: 20, color: '#16a34a', icon: '', label: 'Safe' },
-        { level: 'LOW', min: 21, max: 40, color: '#eab308', icon: '', label: 'Low' },
-        { level: 'MODERATE', min: 41, max: 60, color: '#f97316', icon: '', label: 'Moderate' },
-        { level: 'HIGH', min: 61, max: 80, color: '#dc2626', icon: '', label: 'High' },
-        { level: 'EXTREME', min: 81, max: 100, color: '#9333ea', icon: '', label: 'Extreme' },
+        { level: 'SAFE', min: 0, max: 20, color: t.risk.SAFE, icon: '', label: 'Safe' },
+        { level: 'LOW', min: 21, max: 40, color: t.risk.LOW, icon: '', label: 'Low' },
+        { level: 'MODERATE', min: 41, max: 60, color: t.risk.MODERATE, icon: '', label: 'Moderate' },
+        { level: 'HIGH', min: 61, max: 80, color: t.risk.HIGH, icon: '', label: 'High' },
+        { level: 'EXTREME', min: 81, max: 100, color: t.risk.EXTREME, icon: '', label: 'Extreme' },
       ],
-    [riskMap],
+    [riskMap, t],
   )
 
   const infra: InfrastructureFeature[] = useMemo(
@@ -140,7 +145,9 @@ export function RiskMap({
                 weight: 1,
                 opacity: 0.55,
                 fillColor: cell.risk_color,
-                fillOpacity: 0.13 + (cell.risk_score / 100) * 0.42,
+                /* Kept light enough that the OSM basemap and the river network
+                   stay readable underneath even when every cell is elevated. */
+                fillOpacity: 0.1 + (cell.risk_score / 100) * 0.3,
               }}
             >
               <Popup>
@@ -194,7 +201,7 @@ export function RiskMap({
             <Polyline
               key={`r${w.id}`}
               positions={w.coordinates}
-              pathOptions={{ color: '#22d3ee', weight: 2.2, opacity: 0.8 }}
+              pathOptions={{ color: t.river, weight: 2.2, opacity: 0.9 }}
             >
               {w.name && <LTooltip sticky>{w.name}</LTooltip>}
             </Polyline>
@@ -205,7 +212,7 @@ export function RiskMap({
             <Polyline
               key={`s${w.id}`}
               positions={w.coordinates}
-              pathOptions={{ color: '#0e7490', weight: 1, opacity: 0.55 }}
+              pathOptions={{ color: t.stream, weight: 1, opacity: 0.65 }}
             >
               {w.name && <LTooltip sticky>{w.name}</LTooltip>}
             </Polyline>
@@ -213,15 +220,20 @@ export function RiskMap({
 
         {show.infrastructure &&
           infra.map((f) => {
-            const style = INFRA_STYLE[f.kind] ?? INFRA_STYLE.settlement
+            const style = INFRA_LABEL[f.kind] ?? INFRA_LABEL.settlement
+            const color =
+              f.kind === 'hospital' ? t.hospital
+              : f.kind === 'school' ? t.school
+              : f.kind === 'bridge' ? t.bridge
+              : t.settlement
             return (
               <CircleMarker
                 key={f.id}
                 center={[f.latitude, f.longitude]}
                 radius={4}
                 pathOptions={{
-                  color: style.color,
-                  fillColor: style.color,
+                  color,
+                  fillColor: color,
                   fillOpacity: 0.85,
                   weight: 1,
                 }}
@@ -244,9 +256,9 @@ export function RiskMap({
                 center={[loc.latitude, loc.longitude]}
                 radius={selected ? 11 : 7}
                 pathOptions={{
-                  color: selected ? '#ffffff' : 'rgba(255,255,255,0.75)',
+                  color: selected ? t.markerRingSelected : t.markerRing,
                   weight: selected ? 3 : 1.5,
-                  fillColor: RISK_COLOR[loc.risk_level],
+                  fillColor: t.risk[loc.risk_level],
                   fillOpacity: 0.95,
                 }}
                 eventHandlers={{ click: () => onSelect?.(loc.location_id) }}
@@ -340,10 +352,10 @@ export function RiskMap({
           </div>
         ))}
         {show.rivers && (
-          <div className="legend-row" style={{ marginTop: 6 }}>
+          <div className="legend-row" style={{ marginTop: 'var(--space-xs)' }}>
             <span
               className="legend-swatch"
-              style={{ background: 'none', border: 'none', borderTop: '2.5px solid #22d3ee', height: 0, borderRadius: 0 }}
+              style={{ background: 'none', border: 'none', borderTop: `2.5px solid ${t.river}`, height: 0, borderRadius: 'var(--radius-sm)' }}
               aria-hidden
             />
             <span>River (OSM)</span>
@@ -358,10 +370,10 @@ export function RiskMap({
             {riskMap.grid.rows}×{riskMap.grid.cols} cells · mean {fmt(riskMap.summary.mean, 1)} ·
             max {fmt(riskMap.summary.max, 0)}
           </div>
-          <div className="tiny faint" style={{ marginTop: 3, maxWidth: 250 }}>
+          <div className="tiny faint" style={{ marginTop: 'var(--space-2xs)', maxWidth: '15.625rem' }}>
             Discrete per-cell assessments, not an interpolated surface.
           </div>
-          <div className="tiny faint" style={{ marginTop: 4 }}>
+          <div className="tiny faint" style={{ marginTop: 'var(--space-2xs)' }}>
             {zoomArmed ? 'Scroll to zoom · move away to release' : 'Click the map to enable scroll zoom'}
           </div>
         </div>

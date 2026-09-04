@@ -257,7 +257,7 @@ export function Dashboard({
           title={`Risk map · ${summary?.region.name ?? regionId}`}
           icon="🗺"
           right={
-            <div className="row" style={{ gap: 7 }}>
+            <div className="row" style={{ gap: 'var(--space-xs)' }}>
               {riskMap.loading && <Spinner />}
               {riskMap.data && (
                 <span className="badge badge-neutral">

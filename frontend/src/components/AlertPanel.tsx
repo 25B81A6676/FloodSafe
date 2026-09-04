@@ -12,7 +12,7 @@ export function AlertPanel({ alert, compact = false }: { alert: Alert; compact?:
   return (
     <div className={`alert alert-${alert.severity}`} role={alert.severity === 'CRITICAL' ? 'alert' : 'status'}>
       <div className="alert-head">
-        <span aria-hidden style={{ fontSize: 15 }}>
+        <span aria-hidden style={{ fontSize: 'var(--text-base)' }}>
           {SEVERITY_ICON[alert.severity]}
         </span>
         <span className="alert-headline">{alert.headline}</span>
@@ -35,12 +35,12 @@ export function AlertPanel({ alert, compact = false }: { alert: Alert; compact?:
 
       {!compact && alert.drivers.length > 0 && (
         <div className="mt10">
-          <div className="tiny muted" style={{ marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+          <div className="tiny muted" style={{ marginBottom: 'var(--space-2xs)', textTransform: 'uppercase', letterSpacing: 'var(--tracking-label)' }}>
             Driving factors
           </div>
-          <div className="row wrap" style={{ gap: 6 }}>
+          <div className="row wrap" style={{ gap: 'var(--space-2xs)' }}>
             {alert.drivers.map((d, i) => (
-              <span key={i} className="badge badge-neutral" style={{ textTransform: 'none' }}>
+              <span key={i} className="badge badge-neutral badge-wrap" style={{ textTransform: 'none' }}>
                 {d}
               </span>
             ))}
@@ -50,7 +50,7 @@ export function AlertPanel({ alert, compact = false }: { alert: Alert; compact?:
 
       {!compact && (
         <>
-          <div className="tiny muted mt10" style={{ textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+          <div className="tiny muted mt10" style={{ textTransform: 'uppercase', letterSpacing: 'var(--tracking-label)' }}>
             Recommended actions
           </div>
           <ul className="alert-actions">

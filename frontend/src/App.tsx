@@ -102,7 +102,7 @@ export default function App() {
 
         <div className="header-right">
           {simulationActive && (
-            <span className="badge badge-sim badge-pulse" title="The platform is showing a simulated scenario">
+            <span className="badge badge-sim" title="The platform is showing a simulated scenario">
               <span className="dot" />
               Simulation active
             </span>
@@ -137,7 +137,7 @@ export default function App() {
               value={locationId}
               onChange={(e) => setLocationId(e.target.value)}
               aria-label="Monitoring location"
-              style={{ maxWidth: 210 }}
+              style={{ maxWidth: '13rem' }}
             >
               {(locations.data?.locations ?? []).map((l) => (
                 <option key={l.id} value={l.id}>
@@ -175,7 +175,7 @@ export default function App() {
           using Multi-Source Data. Decision-support prototype: it does not issue official warnings
           or evacuation orders, and must not be the sole basis for emergency decisions.
         </div>
-        <div style={{ marginTop: 6 }}>
+        <div style={{ marginTop: 'var(--space-2xs)' }}>
           Weather and elevation by <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a> (CC BY 4.0) ·
           River discharge from <a href="https://global-flood.emergency.copernicus.eu/" target="_blank" rel="noreferrer">Copernicus EMS GloFAS</a> ·
           Historical rainfall from ECMWF ERA5 ·

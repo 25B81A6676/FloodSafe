@@ -52,7 +52,7 @@ export function Methodology() {
   const cfg = config.data
 
   return (
-    <div className="grid" style={{ gap: 14, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+    <div className="grid" style={{ gap: 'var(--space-md)', gridTemplateColumns: 'minmax(0, 1fr)' }}>
       <Card title="How the risk score is produced" icon="🔬">
         <div className="prose">
           <p>
@@ -118,7 +118,7 @@ export function Methodology() {
         {!cfg && !config.error && <Skeleton height={280} />}
         {cfg && (
           <>
-            <div className="row wrap" style={{ gap: 8, marginBottom: 12 }}>
+            <div className="row wrap" style={{ gap: 'var(--space-xs)', marginBottom: 'var(--space-sm)' }}>
               <span className="badge badge-neutral">{cfg.model_name}</span>
               <span className="badge badge-neutral">v{cfg.version}</span>
               <span className="badge badge-neutral">{cfg.feature_count} features</span>
@@ -152,12 +152,12 @@ export function Methodology() {
                           <span
                             style={{
                               display: 'inline-block',
-                              width: 44,
+                              width: '2.75rem',
                               height: 5,
-                              borderRadius: 3,
-                              background: 'var(--surface-3)',
+                              borderRadius: 'var(--radius-sm)',
+                              background: 'var(--color-paper-4)',
                               position: 'relative',
-                              marginRight: 7,
+                              marginRight: 'var(--space-xs)',
                               verticalAlign: 'middle',
                             }}
                           >
@@ -166,8 +166,8 @@ export function Methodology() {
                                 position: 'absolute',
                                 inset: 0,
                                 width: `${(f.weight / 0.16) * 100}%`,
-                                background: 'var(--accent)',
-                                borderRadius: 3,
+                                background: 'var(--color-accent)',
+                                borderRadius: 'var(--radius-sm)',
                               }}
                             />
                           </span>
@@ -183,18 +183,18 @@ export function Methodology() {
             </div>
 
             <div className="mt14">
-              <h4 style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--muted)' }}>
+              <h4 style={{ fontSize: 'var(--text-sm)', textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--color-muted)' }}>
                 Risk classes
               </h4>
-              <div className="row wrap mt6" style={{ gap: 8 }}>
+              <div className="row wrap mt6" style={{ gap: 'var(--space-xs)' }}>
                 {cfg.risk_classes.map((c) => (
                   <span
                     key={c.level}
                     className="risk-pill"
-                    style={{ background: c.color, minWidth: 130 }}
+                    style={{ background: c.color, minWidth: '8.125rem' }}
                   >
                     {c.label}
-                    <span style={{ marginLeft: 'auto', fontFamily: 'var(--mono)' }}>
+                    <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)' }}>
                       {c.min}–{c.max}
                     </span>
                   </span>
@@ -203,7 +203,7 @@ export function Methodology() {
             </div>
 
             <div className="mt14">
-              <h4 style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--muted)' }}>
+              <h4 style={{ fontSize: 'var(--text-sm)', textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--color-muted)' }}>
                 Model registry
               </h4>
               {cfg.available_models.map((m) => (
@@ -211,7 +211,7 @@ export function Methodology() {
                   <div className="source-name">
                     <b>
                       {m.name}{' '}
-                      {m.active && <span className="chip" style={{ marginLeft: 6 }}>active</span>}
+                      {m.active && <span className="chip" style={{ marginLeft: 'var(--space-xs)' }}>active</span>}
                     </b>
                     <small style={{ whiteSpace: 'normal' }}>{m.description}</small>
                   </div>

@@ -61,10 +61,10 @@ export function Explainability({ risk }: { risk: RiskAssessment }) {
       </div>
 
       {risk.data_quality_notes.length > 0 && (
-        <div className="card-body" style={{ borderTop: '1px solid var(--border)' }}>
+        <div className="card-body" style={{ borderTop: 'var(--rule-width) solid var(--color-rule)' }}>
           <div className="notice notice-info">
             <strong>Data quality</strong>
-            <ul style={{ margin: '5px 0 0', paddingLeft: 17 }}>
+            <ul style={{ margin: 'var(--space-2xs) 0 0', paddingLeft: 'var(--space-md)' }}>
               {risk.data_quality_notes.map((n, i) => (
                 <li key={i}>{n}</li>
               ))}

@@ -127,11 +127,11 @@
     }
   },
   "risk_classes": [
-    { "level": "SAFE",     "min": 0,  "max": 20,  "color": "#16a34a", "icon": "circle",   "label": "Safe" },
-    { "level": "LOW",      "min": 21, "max": 40,  "color": "#eab308", "icon": "circle",   "label": "Low" },
-    { "level": "MODERATE", "min": 41, "max": 60,  "color": "#f97316", "icon": "triangle", "label": "Moderate" },
-    { "level": "HIGH",     "min": 61, "max": 80,  "color": "#dc2626", "icon": "triangle", "label": "High" },
-    { "level": "EXTREME",  "min": 81, "max": 100, "color": "#9333ea", "icon": "hexagon",  "label": "Extreme" }
+    { "level": "SAFE",     "min": 0,  "max": 20,  "color": "oklch(62.7% 0.145 149.2)", "icon": "circle-empty",    "label": "Safe" },
+    { "level": "LOW",      "min": 21, "max": 40,  "color": "oklch(79.5% 0.137 86)",    "icon": "circle-quarter",  "label": "Low" },
+    { "level": "MODERATE", "min": 41, "max": 60,  "color": "oklch(70.5% 0.162 47.6)",  "icon": "circle-half",     "label": "Moderate" },
+    { "level": "HIGH",     "min": 61, "max": 80,  "color": "oklch(61.2% 0.19 27.3)",   "icon": "circle-three-quarter", "label": "High" },
+    { "level": "EXTREME",  "min": 81, "max": 100, "color": "oklch(61.8% 0.227 302.3)", "icon": "circle-full",     "label": "Extreme" }
   ],
   "impact_thresholds": {
     "note": "A contributor's impact label is based on its share of the total raw weighted score.",

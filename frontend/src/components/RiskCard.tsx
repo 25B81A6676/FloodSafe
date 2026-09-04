@@ -9,7 +9,7 @@ const TREND_ICON: Record<string, string> = {
 }
 
 export function RiskCard({ risk, locationName }: { risk: RiskAssessment; locationName: string }) {
-  const color = RISK_COLOR[risk.risk_level] ?? '#64748b'
+  const color = RISK_COLOR[risk.risk_level] ?? 'var(--color-neutral)'
   const simulated = risk.mode === 'SIMULATION'
 
   return (
@@ -25,7 +25,7 @@ export function RiskCard({ risk, locationName }: { risk: RiskAssessment; locatio
         <div className="risk-hero-top">
           <div style={{ minWidth: 0 }}>
             <div className="risk-level-name">
-              <span aria-hidden style={{ fontSize: 20, marginRight: 6 }}>
+              <span aria-hidden style={{ fontSize: 'var(--text-md)', marginRight: 'var(--space-2xs)' }}>
                 {RISK_SYMBOL[risk.risk_level]}
               </span>
               {risk.risk_level}
@@ -76,7 +76,7 @@ export function RiskCard({ risk, locationName }: { risk: RiskAssessment; locatio
 
         <div className="risk-meta">
           {simulated && (
-            <span className="badge badge-sim badge-pulse">
+            <span className="badge badge-sim">
               <span className="dot" />
               Simulated scenario
             </span>
