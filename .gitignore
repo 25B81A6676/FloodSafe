@@ -40,3 +40,6 @@ data/historical/
 .DS_Store
 Thumbs.db
 *.log
+
+# TypeScript incremental build cache
+*.tsbuildinfo
