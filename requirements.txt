@@ -1,0 +1,13 @@
+# Root requirements — the Vercel Python runtime installs these for api/index.py.
+#
+# Deliberately NOT the same as backend/requirements.txt. The serving path needs
+# only the web stack: pandas, numpy, scikit-learn and joblib belong to the
+# ml/ pipeline and to SklearnRiskModel, which imports joblib lazily and only
+# when a trained model file is present. None ships, so none is installed here —
+# which keeps the serverless bundle small and the cold start fast.
+#
+# Local development and the test suite still use backend/requirements.txt.
+fastapi>=0.110
+pydantic>=2.5
+pydantic-settings>=2.1
+httpx>=0.26

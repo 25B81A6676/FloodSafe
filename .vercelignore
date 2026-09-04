@@ -1,0 +1,11 @@
+# Keep the serverless bundle small — none of this is needed to serve the API.
+backend/tests/
+backend/pytest.ini
+ml/
+docs/
+.hallmark/
+data/cache/
+frontend/node_modules/
+frontend/src/
+**/__pycache__/
+*.pyc

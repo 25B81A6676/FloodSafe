@@ -37,10 +37,15 @@ async def lifespan(app: FastAPI):
     log.info("=" * 74)
     init_db()
 
-    from app.services import region_service
+    from app.services import region_service, seed_cache
 
     region_service.reload_regions()
     region_service.sync_locations_to_db()
+
+    # Load the bundled OpenStreetMap / terrain snapshot before anything can ask
+    # for it. On a serverless host this is what keeps a cold request from
+    # blocking on a 12-16 second Overpass query.
+    seed_cache.load_seed()
 
     if settings.startup_prefetch:
         import asyncio

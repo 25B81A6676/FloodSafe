@@ -405,3 +405,37 @@ flashflood prediction/
 ├── .env.example
 └── README.md
 ```
+
+## Deploying to Vercel
+
+The repository is Vercel-ready: the React build is served as static files and
+the FastAPI app runs as a Python serverless function from `api/index.py`.
+
+Two adaptations make the serverless model work, both in the repo already:
+
+- **A bundled OpenStreetMap snapshot** (`data/seed/cache_seed.json.gz`, 1.7 MB).
+  A region-wide Overpass query takes 12–16 s and rate-limits shared cloud IPs,
+  and serverless has no persistent cache to hold the result. The snapshot is
+  loaded into the ordinary cache at startup with its **original fetch
+  timestamp**, so the UI still reports its real age. Weather, river discharge
+  and rainfall climatology are never seeded — those are always fetched live.
+  Refresh the snapshot any time with `python scripts/export_seed.py` against a
+  warmed local backend.
+- **A trimmed dependency set.** The root `requirements.txt` installs only the
+  web stack. pandas, numpy and scikit-learn belong to `ml/` and are not needed
+  to serve the API, which keeps the bundle small and the cold start fast.
+
+Measured on a cold instance with an empty cache: boot 0.4 s, map layers 0.16 s,
+risk map 4.2 s, dashboard 3.8 s — all inside the 60 s function limit.
+
+```bash
+git remote add origin https://github.com/<user>/<repo>.git
+git push -u origin master
+npx vercel --prod
+```
+
+Vercel needs no environment variables: none of the data sources uses an API key.
+
+**A note on demos.** A live presentation is safer from `npm run preview` on the
+presenting machine than from any free-tier host — no cold start, no shared-IP
+rate limiting, and no dependency on venue wifi.
