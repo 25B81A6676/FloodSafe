@@ -34,7 +34,18 @@ export function Authority({
   const [filter, setFilter] = useState<RiskLevel | 'ALL'>('ALL')
   const [selected, setSelected] = useState<string | null>(null)
 
-  const data = authority.data
+  /* Same staleness rule as the summary: cells and vector layers from the
+     scope the user just left must not be drawn over the scope they are
+     looking at now. */
+  const riskMapData = riskMap.data?.region_id === regionId ? riskMap.data : null
+  const layerData = layers.data?.region_id === regionId ? layers.data : null
+
+  /* useAsync keeps the previous payload while refetching so the page does not
+     blank, which means that during a scope change `authority.data` still
+     describes the scope the user just left. Rendering it would put another
+     state's rows and markers on this state's map, so it is gated on the
+     payload's own region id — the same check the location list uses. */
+  const data = authority.data?.region.id === regionId ? authority.data : null
 
   const rows = useMemo(
     () => (data?.locations ?? []).filter((l) => filter === 'ALL' || l.risk_level === filter),
@@ -107,8 +118,8 @@ export function Authority({
             bodyClass="flush"
           >
             <RiskMap
-              riskMap={riskMap.data}
-              layers={layers.data}
+              riskMap={riskMapData}
+              layers={layerData}
               locations={data.locations}
               selectedId={selected}
               onSelect={(id) => setSelected(id)}

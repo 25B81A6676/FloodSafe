@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ScopeBar } from './components/ScopeBar'
 import { FreshnessBadge, Spinner, timeAgo } from './components/ui'
 import { useAsync, useStored } from './hooks/useApi'
@@ -85,18 +85,43 @@ export default function App() {
   const [summaryError, setSummaryError] = useState<string | null>(null)
   const [summaryLoading, setSummaryLoading] = useState(false)
 
+  /* Guards an out-of-order response. useAsync has this built in; this loader is
+     hand-rolled, so without it a slow request for a scope the user has already
+     left can land after a newer one and overwrite it. */
+  const summaryScope = useRef(regionId)
+  summaryScope.current = regionId
+
   const loadSummary = useCallback(async () => {
+    const scope = regionId
     setSummaryLoading(true)
     try {
-      const data = await api.dashboard(regionId)
+      const data = await api.dashboard(scope)
+      if (summaryScope.current !== scope) return
       setSummary(data)
       setSummaryError(null)
     } catch (e) {
+      if (summaryScope.current !== scope) return
       setSummaryError(e instanceof Error ? e.message : String(e))
     } finally {
-      setSummaryLoading(false)
+      if (summaryScope.current === scope) setSummaryLoading(false)
     }
   }, [regionId])
+
+  /* Centre and zoom for the scope that is selected RIGHT NOW, from geography
+     the client already holds. The summary carries these too, but it arrives a
+     fetch later, so relying on it alone left the map sitting on the previous
+     scope — and, worse, drawing that scope's markers. */
+  const scopeView = useMemo(() => {
+    if (districtId) {
+      const district = districtList.find((d) => d.id === districtId)
+      return district ? { center: district.center, zoom: 9, name: district.name } : null
+    }
+    if (stateId) {
+      const state = stateList.find((s) => s.id === stateId)
+      return state ? { center: state.center, zoom: 7, name: state.name } : null
+    }
+    return { center: { latitude: 22.5, longitude: 79.0 }, zoom: 5, name: 'India' }
+  }, [districtId, districtList, stateId, stateList])
 
   useEffect(() => {
     void loadSummary()
@@ -284,6 +309,7 @@ export default function App() {
             onSelectLocation={selectLocation}
             summary={summary}
             summaryError={summaryError}
+            scopeView={scopeView}
             onDataChanged={loadSummary}
             simulation={simulation}
             refreshTick={refreshTick}

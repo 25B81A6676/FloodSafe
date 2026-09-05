@@ -20,7 +20,7 @@ import { useAsync } from '../hooks/useApi'
 import type { SimulationState } from '../hooks/useSimulation'
 import { RiskMap } from '../maps/RiskMap'
 import { api } from '../services/api'
-import type { DashboardSummary, MonitoringSnapshot } from '../types'
+import type { DashboardSummary, LatLon, MonitoringSnapshot } from '../types'
 
 interface Props {
   regionId: string
@@ -28,6 +28,8 @@ interface Props {
   onSelectLocation: (id: string) => void
   summary: DashboardSummary | null
   summaryError: string | null
+  /** Centre/zoom for the CURRENT scope, known before any fetch returns. */
+  scopeView: { center: LatLon; zoom: number; name: string } | null
   onDataChanged: () => void
   /** The one authoritative simulation state, owned by App. */
   simulation: SimulationState
@@ -39,8 +41,9 @@ export function Dashboard({
   regionId,
   selectedLocation,
   onSelectLocation,
-  summary,
+  summary: summaryForAnyScope,
   summaryError,
+  scopeView,
   onDataChanged,
   simulation,
   refreshTick,
@@ -116,11 +119,23 @@ export function Dashboard({
     return <ErrorBox error={monitoring.error} onRetry={monitoring.refresh} />
   }
 
+  /* Same staleness rule as the summary: cells and vector layers from the
+     scope the user just left must not be drawn over the scope they are
+     looking at now. */
+  const riskMapData = riskMap.data?.region_id === regionId ? riskMap.data : null
+  const layerData = layers.data?.region_id === regionId ? layers.data : null
+
+  /* A summary that belongs to a DIFFERENT scope must never be rendered. It
+     feeds the map markers, the map title, the totals and the highest-risk
+     line, so showing a stale one draws another state's stations on this
+     state's map and mislabels every number beside it. */
+  const summary = summaryForAnyScope?.region.id === regionId ? summaryForAnyScope : null
+
   /* The map shows the selected SCOPE. Zooming to the selected point makes sense
      once that point is a real place inside a district (or a curated pilot
      region), but at national or state scope the "location" is a centroid — a
      tight zoom onto one would hide the very thing the user asked to see. */
-  const scope = summary?.region.scope ?? 'region'
+  const scope = summary?.region.scope ?? null
   const focusOnLocation = Boolean(snap) && (scope === 'district' || scope === 'region')
 
   const center: [number, number] =
@@ -128,9 +143,11 @@ export function Dashboard({
       ? [snap.location.latitude, snap.location.longitude]
       : summary
         ? [summary.region.center.latitude, summary.region.center.longitude]
-        : [22.5, 79.0]
+        : scopeView
+          ? [scopeView.center.latitude, scopeView.center.longitude]
+          : [22.5, 79.0]
 
-  const mapZoom = focusOnLocation ? 10 : (summary?.region.default_zoom ?? 5)
+  const mapZoom = focusOnLocation ? 10 : (summary?.region.default_zoom ?? scopeView?.zoom ?? 5)
 
   return (
     <div className="dash-layout">
@@ -253,7 +270,7 @@ export function Dashboard({
         )}
 
         <Card
-          title={`Risk map · ${summary?.region.name ?? regionId}`}
+          title={`Risk map · ${summary?.region.name ?? scopeView?.name ?? regionId}`}
           icon="🗺"
           right={
             <div className="row" style={{ gap: 'var(--space-xs)' }}>
@@ -271,8 +288,8 @@ export function Dashboard({
           bodyClass="flush"
         >
           <RiskMap
-            riskMap={riskMap.data}
-            layers={layers.data}
+            riskMap={riskMapData}
+            layers={layerData}
             locations={summary?.locations ?? []}
             selectedId={selectedLocation}
             onSelect={onSelectLocation}
