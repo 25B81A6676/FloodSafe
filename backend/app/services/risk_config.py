@@ -65,15 +65,59 @@ def get_config() -> dict[str, Any]:
 
 def reload_config() -> None:
     get_config.cache_clear()
+    _profiles.cache_clear()
     get_config()
 
 
-def feature_config(key: str) -> dict[str, Any]:
-    return get_config().get("features", {}).get(key, {})
+# --------------------------------------------------------------------------
+# Optional regional normalisation profiles
+# --------------------------------------------------------------------------
+# The same rainfall total does not mean the same thing in Rajasthan and Assam,
+# so the architecture allows a region to override individual feature curves or
+# weights. It ships with NO overrides: inventing thresholds to make a demo look
+# better would be worse than having none, and none of these could be defended
+# without Indian flood records to fit them against.
+#
+# The important property is that adding one later changes configuration only -
+# the scoring arithmetic in risk_models.py is not duplicated or branched.
+@lru_cache(maxsize=1)
+def _profiles() -> dict[str, Any]:
+    path = settings.config_dir / "regional_profiles.json"
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8")).get("profiles", {}) or {}
+    except json.JSONDecodeError as exc:
+        log.error("regional_profiles.json is invalid JSON (%s); ignoring it", exc)
+        return {}
 
 
-def feature_weight(key: str) -> float:
-    return float(feature_config(key).get("weight", 0.0))
+def profile_for(region_id: str | None) -> dict[str, Any] | None:
+    """Resolve the most specific profile for a scope, or None.
+
+    Falls back from district (``kerala__wayanad``) to state (``kerala``), so a
+    state-wide profile covers its districts without being restated.
+    """
+    if not region_id:
+        return None
+    profiles = _profiles()
+    if region_id in profiles:
+        return profiles[region_id]
+    state_id, _, _ = region_id.partition("__")
+    return profiles.get(state_id)
+
+
+def feature_config(key: str, profile: dict[str, Any] | None = None) -> dict[str, Any]:
+    base = get_config().get("features", {}).get(key, {})
+    if profile:
+        override = (profile.get("features") or {}).get(key)
+        if override:
+            return {**base, **override}
+    return base
+
+
+def feature_weight(key: str, profile: dict[str, Any] | None = None) -> float:
+    return float(feature_config(key, profile).get("weight", 0.0))
 
 
 def interpolate(curve: Sequence[Sequence[float]], value: float) -> float:
@@ -96,11 +140,17 @@ def interpolate(curve: Sequence[Sequence[float]], value: float) -> float:
     return pts[-1][1]
 
 
-def normalize(key: str, value: float | None) -> float | None:
-    """Map a raw feature value to 0-1 using its configured curve."""
+def normalize(
+    key: str, value: float | None, profile: dict[str, Any] | None = None
+) -> float | None:
+    """Map a raw feature value to 0-1 using its configured curve.
+
+    ``profile`` optionally supplies a region-specific curve. With no profile -
+    the shipped default - this is bit-for-bit the global behaviour.
+    """
     if value is None:
         return None
-    cfg = feature_config(key)
+    cfg = feature_config(key, profile)
     curve = cfg.get("curve")
     if not curve:
         return None

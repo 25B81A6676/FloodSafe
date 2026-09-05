@@ -1,0 +1,119 @@
+{
+  "note": "Declared data-provider families. The risk engine never reads this file - it consumes standardised features and has no knowledge of which provider produced them. This manifest exists so the provider set is auditable, and so that 'investigated but not integrated' is recorded explicitly rather than implied by silence.",
+  "status_values": {
+    "active": "Integrated and used in production code paths.",
+    "fallback": "Integrated, used only when the primary provider fails.",
+    "candidate": "Investigated. NOT integrated. No code in this repository calls it."
+  },
+  "families": [
+    {
+      "family": "WeatherProvider",
+      "feature_group": "meteorological",
+      "providers": [
+        {
+          "id": "open_meteo",
+          "name": "Open-Meteo Forecast API",
+          "status": "active",
+          "requires_api_key": false,
+          "licence": "CC BY 4.0",
+          "url": "https://open-meteo.com/",
+          "gives": "Current and forecast precipitation, temperature, humidity, wind, pressure at any latitude/longitude."
+        },
+        {
+          "id": "imd",
+          "name": "India Meteorological Department",
+          "status": "candidate",
+          "requires_api_key": true,
+          "url": "https://mausam.imd.gov.in/",
+          "gives": "Official state-wise and district-wise rainfall products.",
+          "not_integrated_because": "IMD rainfall products are redistributed through data.gov.in, which requires a per-user registered API key. This project's stated constraint is that it runs with zero API keys, so no IMD call exists anywhere in this codebase. The rainfall CLASS BOUNDARIES used for normalisation are IMD's published thresholds, which is a documented standard, not an API integration."
+        }
+      ]
+    },
+    {
+      "family": "RiverProvider",
+      "feature_group": "hydrological",
+      "providers": [
+        {
+          "id": "glofas",
+          "name": "Copernicus EMS GloFAS via Open-Meteo Flood API",
+          "status": "active",
+          "requires_api_key": false,
+          "licence": "Copernicus open licence",
+          "url": "https://global-flood.emergency.copernicus.eu/",
+          "gives": "Modelled river discharge and discharge climatology on a ~5 km grid.",
+          "limitation": "Grid resolution is too coarse for small headwater catchments; the service samples neighbouring cells to find a channel cell rather than trusting the centroid cell."
+        },
+        {
+          "id": "cwc",
+          "name": "Central Water Commission / India-WRIS",
+          "status": "candidate",
+          "requires_api_key": true,
+          "url": "https://indiawris.gov.in/",
+          "gives": "Real-time water level and discharge at gauged sites, and operational flood forecasts.",
+          "not_integrated_because": "No verified, openly documented, key-free machine-readable endpoint was confirmed for this build. CWC operational forecasting is used here only as ARCHITECTURAL inspiration - multi-source fusion of rainfall, satellite estimates and hydrological observations. This application has no access to any CWC internal feed and must not be described as having any."
+        }
+      ]
+    },
+    {
+      "family": "TerrainProvider",
+      "feature_group": "terrain",
+      "providers": [
+        {
+          "id": "copernicus_dem",
+          "name": "Copernicus DEM GLO-90 via Open-Meteo Elevation API",
+          "status": "active",
+          "requires_api_key": false,
+          "url": "https://open-meteo.com/en/docs/elevation-api",
+          "gives": "Ground elevation, from which slope and local relief are derived by finite differences on a sampled stencil.",
+          "freshness_model": "STATIC. Terrain is cached for 180 days and is never presented as a real-time observation."
+        },
+        {
+          "id": "opentopodata_srtm",
+          "name": "OpenTopoData (SRTM 90 m)",
+          "status": "fallback",
+          "requires_api_key": false,
+          "url": "https://www.opentopodata.org/"
+        },
+        {
+          "id": "open_elevation",
+          "name": "Open-Elevation",
+          "status": "fallback",
+          "requires_api_key": false,
+          "url": "https://open-elevation.com/"
+        }
+      ]
+    },
+    {
+      "family": "HistoricalRainProvider",
+      "feature_group": "meteorological",
+      "providers": [
+        {
+          "id": "era5",
+          "name": "ECMWF ERA5 reanalysis via Open-Meteo Archive API",
+          "status": "active",
+          "requires_api_key": false,
+          "url": "https://open-meteo.com/en/docs/historical-weather-api",
+          "gives": "Multi-year rainfall history for the same location and calendar window, used to express today's rainfall as a local percentile.",
+          "freshness_model": "HISTORICAL. This is climate context and is never displayed as live rainfall."
+        }
+      ]
+    },
+    {
+      "family": "ExposureProvider",
+      "feature_group": "hydrological_and_exposure",
+      "providers": [
+        {
+          "id": "openstreetmap",
+          "name": "OpenStreetMap via Overpass API",
+          "status": "active",
+          "requires_api_key": false,
+          "licence": "ODbL",
+          "url": "https://www.openstreetmap.org/copyright",
+          "gives": "River and stream geometry for true point-to-polyline distance and drainage density; hospitals, schools, bridges and settlements for exposure; and the administrative boundaries of every Indian state and district.",
+          "limitation": "Coverage is contributor-driven and varies by district. Query boxes are clamped at wide scopes so a state-level view never issues an unbounded query against a shared community endpoint."
+        }
+      ]
+    }
+  ]
+}

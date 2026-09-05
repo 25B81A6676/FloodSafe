@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     project_root: Path = PROJECT_ROOT
     data_dir: Path = PROJECT_ROOT / "data"
     regions_dir: Path = PROJECT_ROOT / "data" / "regions"
+    india_dir: Path = PROJECT_ROOT / "data" / "india"
     scenarios_dir: Path = PROJECT_ROOT / "data" / "scenarios"
     config_dir: Path = PROJECT_ROOT / "data" / "config"
     cache_dir: Path = PROJECT_ROOT / "data" / "cache"
@@ -40,6 +41,41 @@ class Settings(BaseSettings):
 
     # --- region ----------------------------------------------------------
     default_region_id: str = "uttarakhand"
+
+    # --- geographic scope ------------------------------------------------
+    # Risk-grid resolution per scope. Coarser at national scope because every
+    # cell costs real API calls against four upstream services; finer as the
+    # user drills in and the area shrinks. Rows*cols must stay under
+    # max_batch_points or the weather fetch splits into extra requests.
+    grid_rows_national: int = 8
+    grid_cols_national: int = 8
+    grid_rows_state: int = 6
+    grid_cols_state: int = 7
+    grid_rows_district: int = 5
+    grid_cols_district: int = 5
+    # Largest OSM query box, in degrees. A whole-state Overpass query for every
+    # hospital, school, bridge and settlement is slow and unfair to a shared
+    # community endpoint, so wide scopes query a window and say that they did.
+    gis_max_bbox_degrees: float = 2.0
+    # Settlements resolved per district for the location selector.
+    district_settlement_limit: int = 250
+    # Max stream polylines whose GEOMETRY is sent to the browser. The true
+    # total is always reported alongside, and the map says when it differs -
+    # a displayed count must never be an artefact of the transport budget.
+    # Set above any curated region's network so the pilot regions send all.
+    map_stream_limit: int = 2000
+
+    # --- search radii ----------------------------------------------------
+    # GloFAS cell size is ~0.05 deg, so this offset reaches the adjacent cell.
+    # The stencil exists because a settlement's own cell is often a hillslope
+    # rather than the channel: at Rishikesh the centre cell reports ~0.9 m3/s
+    # while the neighbouring cell holding the Ganga reports three orders of
+    # magnitude more. Widening this searches further for the channel.
+    glofas_stencil_offset_deg: float = 0.05
+    # River-proximity and drainage-density search radius for a monitoring point.
+    osm_search_radius_m: float = 3500.0
+    # The same, for a risk-grid cell, which covers more ground than a point.
+    osm_grid_search_radius_m: float = 4000.0
 
     # --- external endpoints (all free, no API key) -----------------------
     open_meteo_forecast_url: str = "https://api.open-meteo.com/v1/forecast"

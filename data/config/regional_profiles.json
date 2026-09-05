@@ -1,0 +1,18 @@
+{
+  "note": "Optional per-region overrides of feature normalisation curves and weights. Resolution falls back from district ('kerala__wayanad') to state ('kerala') to the global default in risk_weights.json. Overriding a feature merges into its global definition, so a profile need only restate what actually differs.",
+  "why_this_ships_empty": "The same rainfall total does not carry the same meaning in Rajasthan and Assam, and the architecture supports expressing that. No overrides are configured, because none could be defended: there is no labelled Indian flash-flood event dataset available to this project to fit region-specific thresholds against, and inventing plausible-looking numbers to improve a demonstration would be a fabrication. Today the locally-meaningful signal is carried by the rainfall_anomaly feature, which is expressed as a percentile of each location's OWN ERA5 history and is therefore already region-relative without any per-region configuration.",
+  "how_to_add_one": "Add an entry under 'profiles' keyed by state slug or district id. Only the scoring CONFIGURATION changes - the weighted-sum arithmetic in risk_models.py is shared by every region and is never branched or duplicated.",
+  "schema_example": {
+    "some_state_slug": {
+      "label": "Human-readable name for the profile",
+      "rationale": "REQUIRED. Cite the source or state plainly that this is an engineering assumption.",
+      "features": {
+        "rainfall_24h": {
+          "curve": [[0, 0.0], [15.5, 0.15], [64.4, 0.45], [115.5, 0.68], [204.4, 0.88], [300, 1.0]],
+          "weight": 0.09
+        }
+      }
+    }
+  },
+  "profiles": {}
+}

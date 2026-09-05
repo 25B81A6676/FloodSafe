@@ -112,6 +112,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 from app.api.routes import (  # noqa: E402
     alerts,
     dashboard,
+    geography,
     gis,
     health,
     monitoring,
@@ -125,6 +126,7 @@ from app.api.routes import (  # noqa: E402
 API = "/api"
 app.include_router(health.router, prefix=API)
 app.include_router(regions.router, prefix=API)
+app.include_router(geography.router, prefix=API)
 app.include_router(weather.router, prefix=API)
 app.include_router(terrain.router, prefix=API)
 app.include_router(gis.router, prefix=API)

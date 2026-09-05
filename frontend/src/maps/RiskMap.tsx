@@ -314,7 +314,15 @@ export function RiskMap({
             ['grid', `Risk grid (${riskMap?.cells.length ?? 0})`],
             ['stations', `Stations (${locations.length})`],
             ['rivers', `Rivers (${layers?.rivers.length ?? 0})`],
-            ['streams', `Streams (${layers?.stream_count_returned ?? 0})`],
+            [
+              'streams',
+              /* When the geometry is capped for payload size, show BOTH numbers.
+                 Showing only what was sent would make a real count look like a
+                 property of the region rather than of the transport budget. */
+              layers?.stream_geometry_truncated
+                ? `Streams (${layers.stream_count_returned} of ${layers.stream_count_total})`
+                : `Streams (${layers?.stream_count_returned ?? 0})`,
+            ],
             ['infrastructure', `Facilities (${infra.length})`],
           ] as const
         ).map(([key, label]) => (

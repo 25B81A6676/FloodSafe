@@ -1,0 +1,837 @@
+{
+ "generated_at": "2026-09-05T13:53:35Z",
+ "source": "OpenStreetMap via Overpass API",
+ "attribution": "Administrative boundaries (c) OpenStreetMap contributors, ODbL",
+ "admin_level": 4,
+ "count": 36,
+ "states": [
+  {
+   "id": "andaman_and_nicobar_islands",
+   "name": "Andaman and Nicobar Islands",
+   "iso_code": "IN-AN",
+   "type": "union_territory",
+   "bbox": {
+    "min_lat": 6.75627,
+    "min_lon": 92.20421,
+    "max_lat": 13.67531,
+    "max_lon": 94.27732
+   },
+   "center": {
+    "latitude": 10.21579,
+    "longitude": 93.24077
+   },
+   "osm_relation_id": 2025855,
+   "representative_point": {
+    "name": "Port Blair",
+    "latitude": 11.66453,
+    "longitude": 92.73904,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "andhra_pradesh",
+   "name": "Andhra Pradesh",
+   "iso_code": "IN-AP",
+   "type": "state",
+   "bbox": {
+    "min_lat": 12.62386,
+    "min_lon": 76.76008,
+    "max_lat": 19.16681,
+    "max_lon": 84.7658
+   },
+   "center": {
+    "latitude": 15.89534,
+    "longitude": 80.76294
+   },
+   "osm_relation_id": 2022095,
+   "representative_point": {
+    "name": "Amaravati",
+    "latitude": 16.50967,
+    "longitude": 80.51845,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "arunachal_pradesh",
+   "name": "Arunachal Pradesh",
+   "iso_code": "IN-AR",
+   "type": "state",
+   "bbox": {
+    "min_lat": 26.65086,
+    "min_lon": 91.56231,
+    "max_lat": 29.37456,
+    "max_lon": 97.39509
+   },
+   "center": {
+    "latitude": 28.01271,
+    "longitude": 94.4787
+   },
+   "osm_relation_id": 2027346,
+   "representative_point": {
+    "name": "Itanagar",
+    "latitude": 27.09797,
+    "longitude": 93.62373,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "assam",
+   "name": "Assam",
+   "iso_code": "IN-AS",
+   "type": "state",
+   "bbox": {
+    "min_lat": 24.13603,
+    "min_lon": 89.6986,
+    "max_lat": 27.97124,
+    "max_lon": 96.01244
+   },
+   "center": {
+    "latitude": 26.05363,
+    "longitude": 92.85552
+   },
+   "osm_relation_id": 2025886,
+   "representative_point": {
+    "name": "Dispur",
+    "latitude": 26.14094,
+    "longitude": 91.79103,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "bihar",
+   "name": "Bihar",
+   "iso_code": "IN-BR",
+   "type": "state",
+   "bbox": {
+    "min_lat": 24.28572,
+    "min_lon": 83.32126,
+    "max_lat": 27.52163,
+    "max_lon": 88.2938
+   },
+   "center": {
+    "latitude": 25.90367,
+    "longitude": 85.80753
+   },
+   "osm_relation_id": 1958982,
+   "representative_point": {
+    "name": "Patna",
+    "latitude": 25.60932,
+    "longitude": 85.12353,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "chandigarh",
+   "name": "Chandigarh",
+   "iso_code": "IN-CH",
+   "type": "union_territory",
+   "bbox": {
+    "min_lat": 30.66497,
+    "min_lon": 76.70499,
+    "max_lat": 30.79495,
+    "max_lon": 76.84903
+   },
+   "center": {
+    "latitude": 30.72996,
+    "longitude": 76.77701
+   },
+   "osm_relation_id": 1942809,
+   "representative_point": {
+    "name": "Chandigarh",
+    "latitude": 30.73344,
+    "longitude": 76.77971,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "chhattisgarh",
+   "name": "Chhattisgarh",
+   "iso_code": "IN-CG",
+   "type": "state",
+   "bbox": {
+    "min_lat": 17.78222,
+    "min_lon": 80.24418,
+    "max_lat": 24.10669,
+    "max_lon": 84.39596
+   },
+   "center": {
+    "latitude": 20.94445,
+    "longitude": 82.32007
+   },
+   "osm_relation_id": 1972004,
+   "representative_point": {
+    "name": "Raipur",
+    "latitude": 21.23809,
+    "longitude": 81.6337,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "dadra_and_nagar_haveli_and_daman_and_diu",
+   "name": "Dadra and Nagar Haveli and Daman and Diu",
+   "iso_code": "IN-DH",
+   "type": "union_territory",
+   "bbox": {
+    "min_lat": 20.04739,
+    "min_lon": 70.87346,
+    "max_lat": 20.76779,
+    "max_lon": 73.21783
+   },
+   "center": {
+    "latitude": 20.40759,
+    "longitude": 72.04565
+   },
+   "osm_relation_id": 1952530,
+   "representative_point": {
+    "name": "Daman",
+    "latitude": 20.41697,
+    "longitude": 72.83317,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "delhi",
+   "name": "Delhi",
+   "iso_code": "IN-DL",
+   "type": "union_territory",
+   "bbox": {
+    "min_lat": 28.40463,
+    "min_lon": 76.83884,
+    "max_lat": 28.88345,
+    "max_lon": 77.34534
+   },
+   "center": {
+    "latitude": 28.64404,
+    "longitude": 77.09209
+   },
+   "osm_relation_id": 1942586,
+   "representative_point": {
+    "name": "New Delhi",
+    "latitude": 28.6139,
+    "longitude": 77.20901,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "goa",
+   "name": "Goa",
+   "iso_code": "IN-GA",
+   "type": "state",
+   "bbox": {
+    "min_lat": 14.75293,
+    "min_lon": 73.6756,
+    "max_lat": 15.80076,
+    "max_lon": 74.33611
+   },
+   "center": {
+    "latitude": 15.27684,
+    "longitude": 74.00585
+   },
+   "osm_relation_id": 11251493,
+   "representative_point": {
+    "name": "Panaji",
+    "latitude": 15.49899,
+    "longitude": 73.82821,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "gujarat",
+   "name": "Gujarat",
+   "iso_code": "IN-GJ",
+   "type": "state",
+   "bbox": {
+    "min_lat": 20.11953,
+    "min_lon": 68.17566,
+    "max_lat": 24.71189,
+    "max_lon": 74.47643
+   },
+   "center": {
+    "latitude": 22.41571,
+    "longitude": 71.32604
+   },
+   "osm_relation_id": 1949080,
+   "representative_point": {
+    "name": "Gandhinagar",
+    "latitude": 23.22329,
+    "longitude": 72.64923,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "haryana",
+   "name": "Haryana",
+   "iso_code": "IN-HR",
+   "type": "state",
+   "bbox": {
+    "min_lat": 27.65263,
+    "min_lon": 74.47351,
+    "max_lat": 30.92877,
+    "max_lon": 77.60214
+   },
+   "center": {
+    "latitude": 29.2907,
+    "longitude": 76.03782
+   },
+   "osm_relation_id": 1942601,
+   "representative_point": {
+    "name": "Chandigarh",
+    "latitude": 30.73344,
+    "longitude": 76.77971,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "himachal_pradesh",
+   "name": "Himachal Pradesh",
+   "iso_code": "IN-HP",
+   "type": "state",
+   "bbox": {
+    "min_lat": 30.37717,
+    "min_lon": 75.59401,
+    "max_lat": 33.25567,
+    "max_lon": 79.01238
+   },
+   "center": {
+    "latitude": 31.81642,
+    "longitude": 77.30319
+   },
+   "osm_relation_id": 364186,
+   "representative_point": {
+    "name": "Shimla",
+    "latitude": 31.10404,
+    "longitude": 77.17079,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "jammu_and_kashmir",
+   "name": "Jammu and Kashmir",
+   "iso_code": "IN-JK",
+   "type": "union_territory",
+   "bbox": {
+    "min_lat": 32.27636,
+    "min_lon": 73.75003,
+    "max_lat": 34.78714,
+    "max_lon": 76.78032
+   },
+   "center": {
+    "latitude": 33.53175,
+    "longitude": 75.26517
+   },
+   "osm_relation_id": 1943188,
+   "representative_point": {
+    "name": "Srinagar",
+    "latitude": 34.07474,
+    "longitude": 74.82044,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "jharkhand",
+   "name": "Jharkhand",
+   "iso_code": "IN-JH",
+   "type": "state",
+   "bbox": {
+    "min_lat": 21.97003,
+    "min_lon": 83.32811,
+    "max_lat": 25.34892,
+    "max_lon": 87.96283
+   },
+   "center": {
+    "latitude": 23.65948,
+    "longitude": 85.64547
+   },
+   "osm_relation_id": 1960191,
+   "representative_point": {
+    "name": "Ranchi",
+    "latitude": 23.37005,
+    "longitude": 85.32504,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "karnataka",
+   "name": "Karnataka",
+   "iso_code": "IN-KA",
+   "type": "state",
+   "bbox": {
+    "min_lat": 11.59456,
+    "min_lon": 74.05439,
+    "max_lat": 18.47665,
+    "max_lon": 78.58758
+   },
+   "center": {
+    "latitude": 15.03561,
+    "longitude": 76.32099
+   },
+   "osm_relation_id": 2019939,
+   "representative_point": {
+    "name": "Bengaluru",
+    "latitude": 12.97679,
+    "longitude": 77.59008,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "kerala",
+   "name": "Kerala",
+   "iso_code": "IN-KL",
+   "type": "state",
+   "bbox": {
+    "min_lat": 8.29353,
+    "min_lon": 74.86407,
+    "max_lat": 12.79606,
+    "max_lon": 77.41236
+   },
+   "center": {
+    "latitude": 10.5448,
+    "longitude": 76.13822
+   },
+   "osm_relation_id": 2018151,
+   "representative_point": {
+    "name": "Thiruvananthapuram",
+    "latitude": 8.48823,
+    "longitude": 76.94755,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "ladakh",
+   "name": "Ladakh",
+   "iso_code": "IN-LA",
+   "type": "union_territory",
+   "bbox": {
+    "min_lat": 32.33574,
+    "min_lon": 75.32697,
+    "max_lat": 35.67293,
+    "max_lon": 79.46073
+   },
+   "center": {
+    "latitude": 34.00433,
+    "longitude": 77.39385
+   },
+   "osm_relation_id": 5515045,
+   "representative_point": {
+    "name": "Leh",
+    "latitude": 34.1642,
+    "longitude": 77.58481,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "lakshadweep",
+   "name": "Lakshadweep",
+   "iso_code": "IN-LD",
+   "type": "union_territory",
+   "bbox": {
+    "min_lat": 8.06482,
+    "min_lon": 71.51804,
+    "max_lat": 12.60101,
+    "max_lon": 73.90614
+   },
+   "center": {
+    "latitude": 10.33291,
+    "longitude": 72.71209
+   },
+   "osm_relation_id": 2027460,
+   "representative_point": {
+    "name": "Kavaratti",
+    "latitude": 10.56722,
+    "longitude": 72.63946,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "madhya_pradesh",
+   "name": "Madhya Pradesh",
+   "iso_code": "IN-MP",
+   "type": "state",
+   "bbox": {
+    "min_lat": 21.07069,
+    "min_lon": 74.02938,
+    "max_lat": 26.86956,
+    "max_lon": 82.81261
+   },
+   "center": {
+    "latitude": 23.97012,
+    "longitude": 78.421
+   },
+   "osm_relation_id": 1950071,
+   "representative_point": {
+    "name": "Bhopal",
+    "latitude": 23.25849,
+    "longitude": 77.40199,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "maharashtra",
+   "name": "Maharashtra",
+   "iso_code": "IN-MH",
+   "type": "state",
+   "bbox": {
+    "min_lat": 15.60636,
+    "min_lon": 72.65261,
+    "max_lat": 22.03027,
+    "max_lon": 80.89778
+   },
+   "center": {
+    "latitude": 18.81832,
+    "longitude": 76.77519
+   },
+   "osm_relation_id": 1950884,
+   "representative_point": {
+    "name": "Mumbai",
+    "latitude": 19.055,
+    "longitude": 72.8692,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "manipur",
+   "name": "Manipur",
+   "iso_code": "IN-MN",
+   "type": "state",
+   "bbox": {
+    "min_lat": 23.83362,
+    "min_lon": 92.97071,
+    "max_lat": 25.6921,
+    "max_lon": 94.74524
+   },
+   "center": {
+    "latitude": 24.76286,
+    "longitude": 93.85797
+   },
+   "osm_relation_id": 2027869,
+   "representative_point": {
+    "name": "Imphal",
+    "latitude": 24.79912,
+    "longitude": 93.93644,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "meghalaya",
+   "name": "Meghalaya",
+   "iso_code": "IN-ML",
+   "type": "state",
+   "bbox": {
+    "min_lat": 25.03065,
+    "min_lon": 89.81444,
+    "max_lat": 26.11817,
+    "max_lon": 92.80274
+   },
+   "center": {
+    "latitude": 25.57441,
+    "longitude": 91.30859
+   },
+   "osm_relation_id": 2027521,
+   "representative_point": {
+    "name": "Shillong",
+    "latitude": 25.57599,
+    "longitude": 91.88279,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "mizoram",
+   "name": "Mizoram",
+   "iso_code": "IN-MZ",
+   "type": "state",
+   "bbox": {
+    "min_lat": 21.94005,
+    "min_lon": 92.26022,
+    "max_lat": 24.52313,
+    "max_lon": 93.43737
+   },
+   "center": {
+    "latitude": 23.23159,
+    "longitude": 92.84879
+   },
+   "osm_relation_id": 2029046,
+   "representative_point": {
+    "name": "Aizawl",
+    "latitude": 23.72776,
+    "longitude": 92.71799,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "nagaland",
+   "name": "Nagaland",
+   "iso_code": "IN-NL",
+   "type": "state",
+   "bbox": {
+    "min_lat": 25.19843,
+    "min_lon": 93.3267,
+    "max_lat": 27.0358,
+    "max_lon": 95.24238
+   },
+   "center": {
+    "latitude": 26.11711,
+    "longitude": 94.28454
+   },
+   "osm_relation_id": 2027973,
+   "representative_point": {
+    "name": "Kohima",
+    "latitude": 25.66188,
+    "longitude": 94.10192,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "odisha",
+   "name": "Odisha",
+   "iso_code": "IN-OD",
+   "type": "state",
+   "bbox": {
+    "min_lat": 17.81227,
+    "min_lon": 81.38859,
+    "max_lat": 22.56759,
+    "max_lon": 87.48614
+   },
+   "center": {
+    "latitude": 20.18993,
+    "longitude": 84.43736
+   },
+   "osm_relation_id": 1984022,
+   "representative_point": {
+    "name": "Bhubaneshwar",
+    "latitude": 20.2603,
+    "longitude": 85.83945,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "puducherry",
+   "name": "Puducherry",
+   "iso_code": "IN-PY",
+   "type": "union_territory",
+   "bbox": {
+    "min_lat": 10.82772,
+    "min_lon": 75.52659,
+    "max_lat": 16.76171,
+    "max_lon": 82.31371
+   },
+   "center": {
+    "latitude": 13.79472,
+    "longitude": 78.92015
+   },
+   "osm_relation_id": 107001,
+   "representative_point": {
+    "name": "Puducherry",
+    "latitude": 11.93406,
+    "longitude": 79.83064,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "punjab",
+   "name": "Punjab",
+   "iso_code": "IN-PB",
+   "type": "state",
+   "bbox": {
+    "min_lat": 29.54294,
+    "min_lon": 73.87983,
+    "max_lat": 32.51118,
+    "max_lon": 76.93906
+   },
+   "center": {
+    "latitude": 31.02706,
+    "longitude": 75.40945
+   },
+   "osm_relation_id": 1942686,
+   "representative_point": {
+    "name": "Chandigarh",
+    "latitude": 30.73344,
+    "longitude": 76.77971,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "rajasthan",
+   "name": "Rajasthan",
+   "iso_code": "IN-RJ",
+   "type": "state",
+   "bbox": {
+    "min_lat": 23.05866,
+    "min_lon": 69.48444,
+    "max_lat": 30.19825,
+    "max_lon": 78.27201
+   },
+   "center": {
+    "latitude": 26.62846,
+    "longitude": 73.87823
+   },
+   "osm_relation_id": 1942920,
+   "representative_point": {
+    "name": "Jaipur",
+    "latitude": 26.91546,
+    "longitude": 75.81898,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "sikkim",
+   "name": "Sikkim",
+   "iso_code": "IN-SK",
+   "type": "state",
+   "bbox": {
+    "min_lat": 27.07926,
+    "min_lon": 88.01203,
+    "max_lat": 28.12405,
+    "max_lon": 88.92117
+   },
+   "center": {
+    "latitude": 27.60166,
+    "longitude": 88.4666
+   },
+   "osm_relation_id": 1791324,
+   "representative_point": {
+    "name": "Gangtok",
+    "latitude": 27.32905,
+    "longitude": 88.61227,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "tamil_nadu",
+   "name": "Tamil Nadu",
+   "iso_code": "IN-TN",
+   "type": "state",
+   "bbox": {
+    "min_lat": 8.07689,
+    "min_lon": 76.23295,
+    "max_lat": 13.56391,
+    "max_lon": 80.3593
+   },
+   "center": {
+    "latitude": 10.8204,
+    "longitude": 78.29613
+   },
+   "osm_relation_id": 96905,
+   "representative_point": {
+    "name": "Chennai",
+    "latitude": 13.08369,
+    "longitude": 80.27019,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "telangana",
+   "name": "Telangana",
+   "iso_code": "IN-TS",
+   "type": "state",
+   "bbox": {
+    "min_lat": 15.83642,
+    "min_lon": 77.23659,
+    "max_lat": 19.9173,
+    "max_lon": 81.32262
+   },
+   "center": {
+    "latitude": 17.87686,
+    "longitude": 79.27961
+   },
+   "osm_relation_id": 3250963,
+   "representative_point": {
+    "name": "Hyderabad",
+    "latitude": 17.36059,
+    "longitude": 78.47406,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "tripura",
+   "name": "Tripura",
+   "iso_code": "IN-TR",
+   "type": "state",
+   "bbox": {
+    "min_lat": 22.93761,
+    "min_lon": 91.15081,
+    "max_lat": 24.53088,
+    "max_lon": 92.33585
+   },
+   "center": {
+    "latitude": 23.73425,
+    "longitude": 91.74333
+   },
+   "osm_relation_id": 2026458,
+   "representative_point": {
+    "name": "Agartala",
+    "latitude": 23.83124,
+    "longitude": 91.28238,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "uttar_pradesh",
+   "name": "Uttar Pradesh",
+   "iso_code": "IN-UP",
+   "type": "state",
+   "bbox": {
+    "min_lat": 23.87063,
+    "min_lon": 77.08388,
+    "max_lat": 30.40638,
+    "max_lon": 84.63451
+   },
+   "center": {
+    "latitude": 27.1385,
+    "longitude": 80.85919
+   },
+   "osm_relation_id": 1942587,
+   "representative_point": {
+    "name": "Lucknow",
+    "latitude": 26.8381,
+    "longitude": 80.9346,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "uttarakhand",
+   "name": "Uttarakhand",
+   "iso_code": "IN-UK",
+   "type": "state",
+   "bbox": {
+    "min_lat": 28.72432,
+    "min_lon": 77.57133,
+    "max_lat": 31.45902,
+    "max_lon": 81.04479
+   },
+   "center": {
+    "latitude": 30.09167,
+    "longitude": 79.30806
+   },
+   "osm_relation_id": 9987086,
+   "representative_point": {
+    "name": "Dehradun",
+    "latitude": 30.32556,
+    "longitude": 78.04368,
+    "source": "osm_admin_centre"
+   }
+  },
+  {
+   "id": "west_bengal",
+   "name": "West Bengal",
+   "iso_code": "IN-WB",
+   "type": "state",
+   "bbox": {
+    "min_lat": 21.5473,
+    "min_lon": 85.81967,
+    "max_lat": 27.22107,
+    "max_lon": 89.8826
+   },
+   "center": {
+    "latitude": 24.38419,
+    "longitude": 87.85113
+   },
+   "osm_relation_id": 1960177,
+   "representative_point": {
+    "name": "Kolkata",
+    "latitude": 22.57265,
+    "longitude": 88.3639,
+    "source": "osm_admin_centre"
+   }
+  }
+ ]
+}

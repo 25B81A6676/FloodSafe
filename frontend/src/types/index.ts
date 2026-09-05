@@ -441,6 +441,8 @@ export interface MapLayers {
   waterway_notes: string[]
   stream_count_total: number
   stream_count_returned: number
+  /** True when only part of the stream geometry was sent to the browser. */
+  stream_geometry_truncated?: boolean
   infrastructure: InfrastructureFeature[]
   infrastructure_counts: Record<string, number>
   infrastructure_freshness: Freshness
@@ -484,7 +486,12 @@ export interface DashboardSummary {
     bbox: BBox
     default_zoom: number
     terrain_type: string | null
+    scope: Scope
+    state_id: string | null
+    state_name: string | null
   }
+  /** What one ranked row is at this scope: a state, a district or a location. */
+  row_kind: 'state' | 'district' | 'location'
   generated_at: string
   mode: RunMode
   scenario_id: string | null
@@ -593,4 +600,59 @@ export interface ModelConfig {
     description: string
   }[]
   pipeline: string[]
+}
+
+/* ---------------------------------------------------------------------------
+ * India administrative hierarchy: country -> state -> district -> location.
+ * Boundaries come from OpenStreetMap via scripts/build_india_geo.py; the
+ * frontend never derives or invents a coordinate of its own.
+ * ------------------------------------------------------------------------ */
+export interface IndiaState {
+  id: string
+  name: string
+  iso_code: string
+  type: 'state' | 'union_territory'
+  bbox: BBox
+  center: LatLon
+  district_count: number
+  osm_relation_id: number
+}
+
+export interface District {
+  id: string
+  name: string
+  state_id: string
+  state_name: string
+  bbox: BBox
+  center: LatLon
+  osm_relation_id: number
+}
+
+export interface GeographyInfo {
+  country: { id: string; name: string }
+  bbox: BBox
+  levels: string[]
+  state_count: number
+  district_count: number
+  available: boolean
+  generated_at: string | null
+  source: string | null
+  attribution: string | null
+}
+
+/** Every geographic level the app can be scoped to. */
+export type Scope = 'national' | 'state' | 'district' | 'region'
+
+export interface LocationList {
+  region_id: string
+  region_name: string
+  scope: Scope
+  count: number
+  locations: MonitoringLocation[]
+  freshness: Freshness | 'STATIC'
+  notes: string[]
+  age_minutes?: number | null
+  attribution?: string
+  total_found?: number
+  truncated?: boolean
 }

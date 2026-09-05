@@ -259,8 +259,12 @@ in the log) before demonstrating, so every panel loads instantly.
 |---|---|
 | `GET /api/health` | Liveness |
 | `GET /api/system/sources` | Per-source connectivity + cache statistics |
+| `GET /api/system/providers` | Declared provider families and integration status |
+| `GET /api/geography` | India dataset provenance and hierarchy levels |
+| `GET /api/geography/states` | 28 states + 8 union territories |
+| `GET /api/geography/states/{state}/districts` | Districts of one state |
 | `GET /api/regions` · `/api/regions/{id}` | Region configuration and grid |
-| `GET /api/locations` · `/api/locations/{id}` | Monitoring locations |
+| `GET /api/locations?region_id=` | Locations for **any** scope: `india`, a state, a district, or a curated region |
 | `GET /api/weather/{location_id}` | Weather + antecedent rainfall |
 | `GET /api/climatology/{location_id}` | ERA5 distribution + current percentile |
 | `GET /api/terrain/{location_id}` · `/api/terrain` | Elevation, slope, aspect, relief |
@@ -276,12 +280,59 @@ in the log) before demonstrating, so every panel loads instantly.
 | `POST /api/simulation/run` · `/reset` | Drive the simulator |
 | `GET /api/historical/flood-events` | Labelled dataset, if the operator supplied one |
 
-## Adding a region
+## Geographic coverage — all of India
 
-Regions are pure configuration — nothing about Uttarakhand is hard-coded. Drop a JSON
-file into `data/regions/` with a bounding box, centre, rivers, monitoring locations
-and a risk-grid definition, then restart. `himachal_pradesh.json` is included as a
-worked second example and appears in the UI region selector automatically.
+The platform covers **28 states, 8 union territories and every district within them**,
+selected through one hierarchy:
+
+```
+India → State / UT → District → Location
+```
+
+`India → Uttarakhand → Rudraprayag → Gaurikund`, `India → Kerala → Wayanad → …` and
+`India → Telangana → Hyderabad → …` all work through the same code path.
+
+**One risk engine, everywhere.** There is no per-state scoring logic. A state or
+district is resolved into exactly the same region shape a curated JSON file produces,
+so `risk_map_service`, `osm_service` and `flood_risk_engine` never learn that more than
+one kind of region exists. A test asserts that identical feature values produce an
+identical score in all twelve tested states.
+
+**Where the geography comes from.** `data/india/states.json` and
+`data/india/districts.json` are generated from OpenStreetMap administrative relations
+(states are `admin_level=4`, districts `admin_level=5`) by:
+
+```bash
+python scripts/build_india_geo.py
+```
+
+The script is resumable, rotates Overpass mirrors, and **refuses to write a partial
+dataset** — a mirror serving a regional extract rather than the planet is more dangerous
+than one returning an error. No coordinate is hand-entered.
+
+Each state also carries the administrative centre its own OSM relation designates. That
+matters for fragmented union territories: Puducherry's four enclaves are spread across
+South India, so its bounding-box centre lands in inland Andhra Pradesh, and ranking
+Puducherry from that point would attribute another state's weather to it.
+
+**Grid resolution scales with scope** (configurable in `backend/app/config/settings.py`),
+because every cell costs real upstream API calls:
+
+| Scope | Grid | Notes |
+|---|---|---|
+| India | 8 × 8 | Masked to land using the real state bboxes — no cells in the Bay of Bengal |
+| State | 6 × 7 | |
+| District | 5 × 5 | |
+
+Locations are resolved **lazily**: a district's settlements are fetched from OpenStreetMap
+the first time that district is opened, then cached and persisted. Nothing is fetched for
+the ~780 districts a user never visits.
+
+### Curated regions still win
+
+`data/regions/*.json` takes precedence over the generated dataset, so Uttarakhand and
+Himachal Pradesh keep their hand-checked rivers, confluences and monitoring locations.
+Adding a richer curated region for any other state is still just a JSON file.
 
 ## Machine learning
 

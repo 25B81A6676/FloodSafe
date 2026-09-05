@@ -31,7 +31,7 @@ SOURCE_KEY = "overpass"
 SOURCE_LABEL = "OpenStreetMap via Overpass API"
 SOURCE_ATTRIBUTION = "Map data (c) OpenStreetMap contributors, ODbL"
 
-SEARCH_RADIUS_M = 3500.0
+SEARCH_RADIUS_M = settings.osm_search_radius_m
 MAX_POINTS_PER_WAY = 140
 
 
@@ -494,5 +494,101 @@ async def get_region_infrastructure(region: dict[str, Any]) -> dict[str, Any]:
         "source": SOURCE_LABEL, "source_key": SOURCE_KEY,
         "attribution": SOURCE_ATTRIBUTION, "bbox": bbox,
         "features": features, "counts": counts, "notes": [],
+        "observed_at": iso(utcnow()),
+    }
+
+
+# --------------------------------------------------------------------------
+# Settlements inside a district (the location selector)
+# --------------------------------------------------------------------------
+# Ranked so that if a district has more settlements than the configured limit,
+# the ones dropped are the least significant. The true total is always reported
+# alongside, so a truncated list never reads as a complete one.
+_PLACE_RANK = {"city": 0, "town": 1, "village": 2}
+
+
+async def get_district_settlements(district: dict[str, Any]) -> dict[str, Any]:
+    """Real named settlements inside one district, from OpenStreetMap.
+
+    Queried against the district's own administrative *relation* rather than its
+    bounding box: a bbox would pull in towns from neighbouring districts and
+    label them with this district's name, which would be a factual error in the
+    selector. Cached for the OSM TTL, so opening a district costs one Overpass
+    query per week.
+    """
+    relation_id = district.get("osm_relation_id")
+    if not relation_id:
+        return {
+            "district_id": district["id"], "freshness": "DEMO", "age_minutes": 0.0,
+            "settlements": [], "count": 0, "total_found": 0, "truncated": False,
+            "source": SOURCE_LABEL, "source_key": SOURCE_KEY,
+            "attribution": SOURCE_ATTRIBUTION,
+            "notes": ["This district has no OpenStreetMap relation id recorded."],
+            "observed_at": iso(utcnow()),
+        }
+
+    query = (
+        f"[out:json][timeout:{int(settings.http_overpass_timeout_seconds)}];"
+        f"relation({int(relation_id)});map_to_area->.d;"
+        f'node(area.d)["place"~"^(city|town|village)$"]["name"];'
+        "out tags center;"
+    )
+    key = data_cache.make_key("osm-settlements", district=district["id"], rel=relation_id)
+
+    try:
+        raw, freshness, age = await _overpass(query, cache_key=key, ttl=settings.cache_ttl_osm)
+    except UpstreamError as exc:
+        # No invented fallback list. The caller falls back to the district
+        # centroid, which is a real derived coordinate and is labelled as one.
+        return {
+            "district_id": district["id"], "freshness": "DEMO", "age_minutes": 0.0,
+            "settlements": [], "count": 0, "total_found": 0, "truncated": False,
+            "source": SOURCE_LABEL, "source_key": SOURCE_KEY,
+            "attribution": SOURCE_ATTRIBUTION,
+            "notes": [f"OpenStreetMap settlements unavailable: {str(exc)[:160]}"],
+            "observed_at": iso(utcnow()),
+        }
+
+    settlements: list[dict[str, Any]] = []
+    for element in raw.get("elements", []):
+        tags = element.get("tags", {})
+        name = tags.get("name:en") or tags.get("name")
+        lat, lon = element.get("lat"), element.get("lon")
+        if not name or lat is None or lon is None:
+            continue
+        settlements.append({
+            "id": f"loc_osm_{element.get('id')}",
+            "name": name,
+            "settlement_type": tags.get("place"),
+            "latitude": round(float(lat), 5),
+            "longitude": round(float(lon), 5),
+            "district": district["name"],
+            "district_id": district["id"],
+            "state_id": district["state_id"],
+        })
+
+    total = len(settlements)
+    settlements.sort(key=lambda s: (_PLACE_RANK.get(s["settlement_type"], 3), s["name"]))
+    limit = settings.district_settlement_limit
+    truncated = total > limit
+    if truncated:
+        settlements = settlements[:limit]
+
+    notes = []
+    if truncated:
+        notes.append(
+            f"Showing the {limit} most significant of {total} mapped settlements "
+            "(cities first, then towns, then villages)."
+        )
+    log.info(
+        "OSM settlements for %s: %d of %d (%s)",
+        district["id"], len(settlements), total, freshness,
+    )
+    return {
+        "district_id": district["id"], "freshness": freshness, "age_minutes": round(age, 1),
+        "settlements": settlements, "count": len(settlements),
+        "total_found": total, "truncated": truncated,
+        "source": SOURCE_LABEL, "source_key": SOURCE_KEY,
+        "attribution": SOURCE_ATTRIBUTION, "notes": notes,
         "observed_at": iso(utcnow()),
     }

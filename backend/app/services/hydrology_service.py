@@ -45,12 +45,13 @@ PAST_DAYS = 30
 FORECAST_DAYS = 7
 
 # Offsets in degrees. GloFAS is ~0.05 deg, so +/-0.05 reaches the adjacent cell.
+_D = settings.glofas_stencil_offset_deg
 STENCIL_FULL: tuple[tuple[float, float], ...] = (
-    (0.0, 0.0), (0.05, 0.0), (-0.05, 0.0), (0.0, 0.05),
-    (0.0, -0.05), (0.05, 0.05), (-0.05, -0.05),
+    (0.0, 0.0), (_D, 0.0), (-_D, 0.0), (0.0, _D),
+    (0.0, -_D), (_D, _D), (-_D, -_D),
 )
 STENCIL_COMPACT: tuple[tuple[float, float], ...] = (
-    (0.0, 0.0), (0.05, 0.0), (-0.05, 0.0), (0.0, 0.05), (0.0, -0.05),
+    (0.0, 0.0), (_D, 0.0), (-_D, 0.0), (0.0, _D), (0.0, -_D),
 )
 
 

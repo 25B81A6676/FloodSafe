@@ -15,6 +15,7 @@ import asyncio
 from typing import Any
 
 from app.config.logging_config import get_logger
+from app.config.settings import settings
 from app.models.enums import RunMode
 from app.services import (
     elevation_service,
@@ -32,7 +33,7 @@ from app.services.data_cache import iso, utcnow
 
 log = get_logger(__name__)
 
-GRID_SEARCH_RADIUS_M = 4000.0
+GRID_SEARCH_RADIUS_M = settings.osm_grid_search_radius_m
 
 
 async def build_risk_map(
@@ -175,13 +176,19 @@ async def get_map_layers(region_id: str | None = None) -> dict[str, Any]:
         infrastructure = {"features": [], "counts": {}, "freshness": "DEMO",
                           "notes": ["Infrastructure layer unavailable."]}
 
-    # The whole mapped stream network, longest first. An earlier [:700] budget
-    # meant the layer toggle reported 700 when the region actually has ~1380
-    # streams — a real count should never be a transport artefact. The payload
-    # compresses well and Leaflet renders it to canvas.
-    streams = sorted(
+    # Longest first, then bounded. A whole Indian state's stream geometry is
+    # ~16 MB, which is not something to push at a browser, but an earlier [:700]
+    # budget was worse: the layer toggle reported 700 when the region actually
+    # had ~1380 streams, so a real count silently became a transport artefact.
+    #
+    # Both numbers are therefore returned - how many were sent AND how many
+    # exist - and the map labels the layer with both whenever they differ. The
+    # limit is above any curated region's stream count, so the pilot regions are
+    # unaffected and still send their whole network.
+    all_streams = sorted(
         waterways.get("streams", []), key=lambda s: len(s.get("coordinates", [])), reverse=True
     )
+    streams = all_streams[: settings.map_stream_limit]
 
     return {
         "region_id": region["id"],
@@ -192,8 +199,9 @@ async def get_map_layers(region_id: str | None = None) -> dict[str, Any]:
         "waterway_freshness": waterways.get("freshness"),
         "waterway_age_minutes": waterways.get("age_minutes"),
         "waterway_notes": waterways.get("notes", []),
-        "stream_count_total": len(waterways.get("streams", [])),
+        "stream_count_total": len(all_streams),
         "stream_count_returned": len(streams),
+        "stream_geometry_truncated": len(streams) < len(all_streams),
         "infrastructure": infrastructure.get("features", []),
         "infrastructure_counts": infrastructure.get("counts", {}),
         "infrastructure_freshness": infrastructure.get("freshness"),

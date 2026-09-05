@@ -116,11 +116,21 @@ export function Dashboard({
     return <ErrorBox error={monitoring.error} onRetry={monitoring.refresh} />
   }
 
-  const center: [number, number] = snap
-    ? [snap.location.latitude, snap.location.longitude]
-    : summary
-      ? [summary.region.center.latitude, summary.region.center.longitude]
-      : [30.2, 79.0]
+  /* The map shows the selected SCOPE. Zooming to the selected point makes sense
+     once that point is a real place inside a district (or a curated pilot
+     region), but at national or state scope the "location" is a centroid — a
+     tight zoom onto one would hide the very thing the user asked to see. */
+  const scope = summary?.region.scope ?? 'region'
+  const focusOnLocation = Boolean(snap) && (scope === 'district' || scope === 'region')
+
+  const center: [number, number] =
+    focusOnLocation && snap
+      ? [snap.location.latitude, snap.location.longitude]
+      : summary
+        ? [summary.region.center.latitude, summary.region.center.longitude]
+        : [22.5, 79.0]
+
+  const mapZoom = focusOnLocation ? 10 : (summary?.region.default_zoom ?? 5)
 
   return (
     <div className="dash-layout">
@@ -267,7 +277,7 @@ export function Dashboard({
             selectedId={selectedLocation}
             onSelect={onSelectLocation}
             center={center}
-            zoom={snap ? 10 : (summary?.region.default_zoom ?? 8)}
+            zoom={mapZoom}
           />
         </Card>
 

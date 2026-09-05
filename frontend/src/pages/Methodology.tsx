@@ -56,9 +56,41 @@ export function Methodology() {
       <Card title="How the risk score is produced" icon="🔬">
         <div className="prose">
           <p>
-            FloodSafe estimates how <em>susceptible</em> a location currently is to flash flooding by
-            fusing five independent open data sources into a single transparent score. It is a
-            decision-support prototype, not a validated hydrological forecast.
+            FloodSafe performs <strong>India-wide multi-source flash-flood risk assessment</strong>.
+            It estimates how <em>susceptible</em> a location currently is to flash flooding by fusing
+            five independent open data sources into a single transparent score. It is a
+            decision-support prototype, not a validated hydrological forecast, and it does not
+            perform flood prediction in the meteorological sense.
+          </p>
+          <p>
+            The 0–100 value is a <strong>risk score, not a calibrated probability of flooding</strong>.
+            A score of 60 does not mean a 60&nbsp;% chance of a flood; it means this location scores
+            higher on the weighted combination of the twelve indicators below than a location
+            scoring 40.
+          </p>
+
+          <h3>Geographic coverage</h3>
+          <p>
+            The platform covers all of India — {' '}
+            <strong>28 states and 8 union territories</strong>, and every district within them.
+            Administrative boundaries come from OpenStreetMap relations (states are{' '}
+            <code>admin_level=4</code>, districts <code>admin_level=5</code>) and are refreshed by a
+            generation script rather than typed in by hand, so no coordinate in the hierarchy is
+            invented.
+          </p>
+          <p>
+            Coverage of the <em>hierarchy</em> is not the same as coverage of live{' '}
+            <em>measurements</em>, and the two are never conflated in this interface. Every location
+            in India can be scored, but each feature independently reports whether its value came
+            from a live call, a cache, a stale cache, or was unavailable. Where a source cannot
+            answer, the feature is dropped and the remaining weights are renormalised — no value is
+            substituted.
+          </p>
+          <p>
+            Scope is chosen with the India → state → district → location selector. The grid becomes
+            finer as the scope narrows, because every grid cell costs real upstream API calls: a
+            national view is deliberately coarse and each cell is an independent assessment at its
+            own centre point, not a claim about every square kilometre it covers.
           </p>
         </div>
 
@@ -102,12 +134,34 @@ export function Methodology() {
             warning system. Model coverage and data confidence are both surfaced in the UI.
           </p>
 
+          <h3>Region-aware normalisation</h3>
+          <p>
+            The same twelve features and the same weighted-sum arithmetic are used for every
+            location in India — there is no per-state formula. What the architecture{' '}
+            <em>does</em> allow is per-region normalisation curves, because the same rainfall total
+            does not carry the same meaning in Rajasthan and Assam. Rainfall breakpoints already
+            follow the India Meteorological Department rainfall classes, and the{' '}
+            <code>rainfall_anomaly</code> feature is expressed as a percentile of each location&apos;s
+            own ERA5 history, which is the mechanism that makes a single global configuration
+            locally meaningful today.
+          </p>
+          <p>
+            Terrain and hydrology breakpoints are <strong>engineering assumptions</strong>, labelled
+            as such in <code>risk_weights.json</code> and reproduced in the table below. They were
+            chosen to spread observed values across the 0–1 range, not derived from Indian flood
+            records. Adding basin-specific or state-specific curves is a configuration change, not a
+            code change, and none have been added on the basis of guesswork.
+          </p>
+
           <h3>What this prototype cannot do</h3>
           <ul>
             <li>It does not simulate hydraulics: no inundation depth, extent or arrival time.</li>
             <li>It is not calibrated against observed flood events, so the score is relative, not probabilistic.</li>
+            <li>It does not claim India-wide real-time coverage: live data depends on what each upstream source can answer for each point, and that is reported per feature.</li>
+            <li>It has no access to India Meteorological Department or Central Water Commission internal feeds. No official Indian government API is consumed anywhere in this build.</li>
+            <li>It does not compute evacuation routes.</li>
             <li>GloFAS resolves rivers on a ~5 km grid, too coarse for small headwater catchments.</li>
-            <li>OpenStreetMap coverage of small streams varies, which affects drainage density.</li>
+            <li>OpenStreetMap coverage of small streams and settlements varies by district, which affects drainage density and the location list.</li>
             <li>It must never be the sole basis for an evacuation decision.</li>
           </ul>
         </div>

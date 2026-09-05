@@ -43,7 +43,11 @@ CREATE TABLE IF NOT EXISTS monitoring_locations (
     nearest_river TEXT,
     settlement_type TEXT,
     exposure     TEXT,
-    updated_at   TEXT NOT NULL
+    updated_at   TEXT NOT NULL,
+    country      TEXT,
+    state_id     TEXT,
+    district_id  TEXT,
+    origin       TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_locations_region ON monitoring_locations(region_id);
 
@@ -156,9 +160,47 @@ def write_conn() -> Iterator[sqlite3.Connection]:
             yield conn
 
 
+# Additive column migrations for databases created before pan-India support.
+# Purely additive: no existing column is dropped, renamed or retyped, so an
+# older database keeps every row it had. `CREATE TABLE IF NOT EXISTS` alone
+# cannot do this - it is a no-op once the table exists.
+MIGRATIONS: tuple[tuple[str, str, str], ...] = (
+    ("monitoring_locations", "country", "TEXT"),
+    ("monitoring_locations", "state_id", "TEXT"),
+    ("monitoring_locations", "district_id", "TEXT"),
+    ("monitoring_locations", "origin", "TEXT"),
+)
+
+
+# Indexes over migrated columns. These CANNOT live in SCHEMA: on a database that
+# already exists, `CREATE TABLE IF NOT EXISTS` is a no-op, so the column is still
+# missing when the index statement runs and the whole script fails with
+# "no such column: state_id". They run after _migrate has added the columns.
+POST_MIGRATION_INDEXES = """
+CREATE INDEX IF NOT EXISTS idx_locations_state ON monitoring_locations(state_id);
+CREATE INDEX IF NOT EXISTS idx_locations_district ON monitoring_locations(district_id);
+"""
+
+
+def _migrate(conn: sqlite3.Connection) -> list[str]:
+    applied: list[str] = []
+    for table, column, decl in MIGRATIONS:
+        existing = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
+        if not existing:
+            continue  # table not created yet; SCHEMA already has the column
+        if column not in existing:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
+            applied.append(f"{table}.{column}")
+    return applied
+
+
 def init_db() -> None:
     with write_conn() as conn:
         conn.executescript(SCHEMA)
+        applied = _migrate(conn)
+        conn.executescript(POST_MIGRATION_INDEXES)
+    if applied:
+        log.info("%s applied %d migration(s): %s", EV_DB, len(applied), ", ".join(applied))
     log.info("%s schema ready at %s", EV_DB, settings.database_path)
 
 
@@ -172,6 +214,7 @@ def reset_db() -> None:
             if r["name"] != "sqlite_sequence":
                 conn.execute(f'DROP TABLE IF EXISTS "{r["name"]}"')
         conn.executescript(SCHEMA)
+        conn.executescript(POST_MIGRATION_INDEXES)
 
 
 def jdump(obj: Any) -> str:

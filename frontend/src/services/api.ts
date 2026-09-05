@@ -7,9 +7,12 @@
  */
 import type {
   DashboardSummary,
+  District,
+  GeographyInfo,
+  IndiaState,
+  LocationList,
   MapLayers,
   ModelConfig,
-  MonitoringLocation,
   MonitoringSnapshot,
   Region,
   RiskMap,
@@ -78,13 +81,26 @@ export const api = {
   regions: () =>
     request<{ default_region_id: string; count: number; regions: Region[] }>('/regions'),
 
-  locations: (regionId?: string) =>
+  /** The India → state → district hierarchy. Boundaries, never risk values. */
+  geography: () => request<GeographyInfo>('/geography'),
+
+  states: () =>
+    request<{ country: string; count: number; states: IndiaState[]; attribution: string | null }>(
+      '/geography/states',
+    ),
+
+  districts: (stateId: string) =>
     request<{
-      region_id: string
-      region_name: string
+      state_id: string
+      state_name: string
       count: number
-      locations: MonitoringLocation[]
-    }>(`/locations${qs({ region_id: regionId })}`),
+      districts: District[]
+      attribution: string | null
+    }>(`/geography/states/${encodeURIComponent(stateId)}/districts`),
+
+  /** Locations for any scope: a curated region, 'india', a state or a district. */
+  locations: (regionId?: string) =>
+    request<LocationList>(`/locations${qs({ region_id: regionId })}`),
 
   monitoring: (locationId: string, opts: { refresh?: boolean; timeline?: boolean } = {}) =>
     request<MonitoringSnapshot>(

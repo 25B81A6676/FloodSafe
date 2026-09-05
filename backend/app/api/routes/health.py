@@ -1,9 +1,10 @@
 """Health, source connectivity and cache diagnostics."""
 from __future__ import annotations
 
+import json
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from app.config.settings import network_disabled, settings
 from app.services import data_cache, http_client
@@ -50,3 +51,22 @@ async def sources() -> dict[str, Any]:
 @router.get("/system/cache")
 async def cache_stats() -> dict[str, Any]:
     return data_cache.stats()
+
+
+@router.get("/system/providers")
+async def providers() -> dict[str, Any]:
+    """Declared data-provider families and their integration status.
+
+    Deliberately explicit about what is NOT integrated: a family lists official
+    Indian sources that were investigated as 'candidate', with the reason they
+    are not consumed. Silence would read as capability we do not have.
+    """
+    path = settings.config_dir / "providers.json"
+    if not path.exists():
+        raise HTTPException(status_code=503, detail="Provider manifest not found")
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    counts: dict[str, int] = {}
+    for family in manifest.get("families", []):
+        for provider in family.get("providers", []):
+            counts[provider["status"]] = counts.get(provider["status"], 0) + 1
+    return {**manifest, "counts": counts}

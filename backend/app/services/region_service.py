@@ -3,6 +3,13 @@
 Regions are pure configuration (``data/regions/*.json``). Nothing about
 Uttarakhand is hard-coded in the business logic: adding another hilly region is
 a matter of dropping in a new JSON file.
+
+Beyond those curated files the registry falls back to ``india_service``, which
+synthesises a region of the same shape for any Indian state or district from the
+OpenStreetMap administrative dataset. Resolution order is always **curated
+first**, so the two pilot regions keep their hand-checked rivers, confluences and
+monitoring locations, and every other part of India is served from real OSM
+boundaries through the identical code path.
 """
 from __future__ import annotations
 
@@ -14,7 +21,8 @@ from typing import Any
 
 from app.config.logging_config import get_logger
 from app.config.settings import settings
-from app.database.db import write_conn
+from app.database.db import get_conn, write_conn
+from app.services import india_service
 from app.services.data_cache import iso, utcnow
 
 log = get_logger(__name__)
@@ -111,11 +119,21 @@ def list_regions() -> list[dict[str, Any]]:
 
 
 def get_region(region_id: str | None = None) -> dict[str, Any]:
+    """Curated region file if one exists, otherwise a synthesised Indian scope.
+
+    ``india``, any state slug (``kerala``) and any district slug
+    (``kerala__wayanad``) resolve here, which is what lets every downstream
+    service work nationwide without knowing that more than one kind of region
+    exists.
+    """
     rid = region_id or settings.default_region_id
     regions = _load_all()
-    if rid not in regions:
-        raise RegionNotFound(rid)
-    return regions[rid]
+    if rid in regions:
+        return regions[rid]
+    try:
+        return india_service.synthesize_region(rid)
+    except (india_service.ScopeNotFound, india_service.GeographyUnavailable) as exc:
+        raise RegionNotFound(rid) from exc
 
 
 def get_locations(region_id: str | None = None) -> list[Location]:
@@ -147,11 +165,68 @@ def _location_index() -> dict[str, Location]:
     return idx
 
 
+def _synthesized_location(location_id: str) -> Location | None:
+    """Resolve a location id that belongs to a synthesised Indian scope.
+
+    Centroid ids carry their own geography, so they resolve with no lookup
+    table. Settlement ids (``loc_osm_*``) are resolved from OpenStreetMap the
+    first time a district is opened and persisted to SQLite, so they resolve
+    here on every later request - including after a restart.
+    """
+    if location_id.startswith("loc_state_"):
+        try:
+            state = india_service.get_state(location_id.removeprefix("loc_state_"))
+        except india_service.ScopeNotFound:
+            return None
+        point = india_service.representative_point(state)
+        return Location(
+            id=location_id, region_id=state["id"], name=state["name"], district=None,
+            latitude=float(point["latitude"]), longitude=float(point["longitude"]),
+            reference_elevation_m=None, nearest_river=None,
+            settlement_type=(
+                "state_admin_centre"
+                if point["source"] == "osm_admin_centre"
+                else "state_centroid"
+            ),
+            exposure=None,
+        )
+
+    candidate = location_id.removeprefix("loc_")
+    if india_service.DISTRICT_SEP in candidate:
+        try:
+            district = india_service.get_district(candidate)
+        except india_service.ScopeNotFound:
+            return None
+        return Location(
+            id=location_id, region_id=district["id"],
+            name=f"{district['name']} district centre", district=district["name"],
+            latitude=district["center"]["latitude"], longitude=district["center"]["longitude"],
+            reference_elevation_m=None, nearest_river=None,
+            settlement_type="district_centroid", exposure=None,
+        )
+
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM monitoring_locations WHERE id = ?", (location_id,)
+        ).fetchone()
+    if row is None:
+        return None
+    return Location(
+        id=row["id"], region_id=row["region_id"], name=row["name"],
+        district=row["district"], latitude=row["latitude"], longitude=row["longitude"],
+        reference_elevation_m=row["elevation_m"], nearest_river=row["nearest_river"],
+        settlement_type=row["settlement_type"], exposure=row["exposure"],
+    )
+
+
 def get_location(location_id: str) -> Location:
     idx = _location_index()
-    if location_id not in idx:
+    if location_id in idx:
+        return idx[location_id]
+    synthesized = _synthesized_location(location_id)
+    if synthesized is None:
         raise LocationNotFound(location_id)
-    return idx[location_id]
+    return synthesized
 
 
 def region_of(location_id: str) -> dict[str, Any]:
@@ -199,6 +274,7 @@ def get_grid_cells(region_id: str | None = None) -> list[GridCell]:
     rows = int(cfg.get("rows", 5))
     cols = int(cfg.get("cols", 5))
     bbox = cfg.get("bbox") or region["bbox"]
+    mask = cfg.get("mask")
 
     lat0, lat1 = float(bbox["min_lat"]), float(bbox["max_lat"])
     lon0, lon1 = float(bbox["min_lon"]), float(bbox["max_lon"])
@@ -210,13 +286,21 @@ def get_grid_cells(region_id: str | None = None) -> list[GridCell]:
         for c in range(cols):
             mnlat = lat0 + r * dlat
             mnlon = lon0 + c * dlon
+            clat = round(mnlat + dlat / 2, 5)
+            clon = round(mnlon + dlon / 2, 5)
+            # India's bounding box is mostly not India - a uniform grid over it
+            # puts cells in the Bay of Bengal and the Arabian Sea, where four
+            # upstream APIs would be queried for nothing. Keep only cells whose
+            # centre falls inside some state.
+            if mask == "state_bbox" and not india_service.in_india(clat, clon):
+                continue
             cells.append(
                 GridCell(
                     id=f"cell_{r}_{c}",
                     row=r,
                     col=c,
-                    center_lat=round(mnlat + dlat / 2, 5),
-                    center_lon=round(mnlon + dlon / 2, 5),
+                    center_lat=clat,
+                    center_lon=clon,
                     min_lat=round(mnlat, 5),
                     min_lon=round(mnlon, 5),
                     max_lat=round(mnlat + dlat, 5),
@@ -250,20 +334,64 @@ def sync_locations_to_db() -> int:
                 conn.execute(
                     """INSERT INTO monitoring_locations
                        (id, region_id, name, district, latitude, longitude, elevation_m,
-                        nearest_river, settlement_type, exposure, updated_at)
-                       VALUES (?,?,?,?,?,?,?,?,?,?,?)
+                        nearest_river, settlement_type, exposure, updated_at,
+                        country, state_id, origin)
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                        ON CONFLICT(id) DO UPDATE SET
                          region_id=excluded.region_id, name=excluded.name,
                          district=excluded.district, latitude=excluded.latitude,
                          longitude=excluded.longitude, nearest_river=excluded.nearest_river,
                          settlement_type=excluded.settlement_type,
-                         exposure=excluded.exposure, updated_at=excluded.updated_at""",
+                         exposure=excluded.exposure, updated_at=excluded.updated_at,
+                         country=excluded.country, state_id=excluded.state_id,
+                         origin=excluded.origin""",
                     (
                         loc.id, loc.region_id, loc.name, loc.district,
                         loc.latitude, loc.longitude, loc.reference_elevation_m,
                         loc.nearest_river, loc.settlement_type, loc.exposure, now,
+                        # A curated region id is the state slug, which is what
+                        # makes the pilot regions queryable by state alongside
+                        # everything resolved from the India dataset.
+                        "India", loc.region_id, "curated",
                     ),
                 )
                 n += 1
     log.info("synced %d monitoring locations to SQLite", n)
     return n
+
+
+def remember_locations(rows: list[dict[str, Any]], *, region_id: str, origin: str) -> int:
+    """Persist resolved locations so they survive a restart.
+
+    Settlements are discovered from OpenStreetMap the first time a district is
+    opened. Without this, ``/monitoring/loc_osm_123`` would 404 after a restart
+    even though the user still has the location selected. Nothing is invented
+    here - every row is a real OSM node that was actually returned.
+    """
+    if not rows:
+        return 0
+    now = iso(utcnow())
+    with write_conn() as conn:
+        for row in rows:
+            conn.execute(
+                """INSERT INTO monitoring_locations
+                   (id, region_id, name, district, latitude, longitude, elevation_m,
+                    nearest_river, settlement_type, exposure, updated_at,
+                    country, state_id, district_id, origin)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                   ON CONFLICT(id) DO UPDATE SET
+                     region_id=excluded.region_id, name=excluded.name,
+                     district=excluded.district, latitude=excluded.latitude,
+                     longitude=excluded.longitude,
+                     settlement_type=excluded.settlement_type,
+                     updated_at=excluded.updated_at, country=excluded.country,
+                     state_id=excluded.state_id, district_id=excluded.district_id,
+                     origin=excluded.origin""",
+                (
+                    row["id"], region_id, row["name"], row.get("district"),
+                    float(row["latitude"]), float(row["longitude"]), None,
+                    None, row.get("settlement_type"), None, now,
+                    "India", row.get("state_id"), row.get("district_id"), origin,
+                ),
+            )
+    return len(rows)

@@ -104,7 +104,19 @@ async def build_summary(
             "bbox": region["bbox"],
             "default_zoom": region.get("default_zoom", 8),
             "terrain_type": region.get("terrain_type"),
+            "scope": region.get("scope", "region"),
+            "state_id": region.get("state_id"),
+            "state_name": region.get("state_name"),
         },
+        # What one ranked row represents at this scope. A national summary ranks
+        # states, a state summary ranks districts, and everything else ranks
+        # individual monitoring locations - all from the same rows, because the
+        # monitoring locations of a scope *are* its children.
+        "row_kind": {
+            "national": "state",
+            "state": "district",
+            "district": "location",
+        }.get(region.get("scope", ""), "location"),
         "generated_at": iso(utcnow()),
         "mode": "SIMULATION" if sim_state.get("active") else "LIVE",
         "scenario_id": sim_state.get("scenario_id"),

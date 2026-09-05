@@ -198,3 +198,48 @@ class TestConfiguration:
         near = risk_config.normalize("river_proximity", 50)
         far = risk_config.normalize("river_proximity", 3000)
         assert near > far
+
+
+class TestRegionalProfiles:
+    """Optional per-region normalisation, shipped with no overrides."""
+
+    def test_no_profiles_ship_by_default(self):
+        """Inventing region-specific thresholds would be a fabrication."""
+        from app.services import risk_config
+
+        assert risk_config._profiles() == {}  # noqa: SLF001 - asserting shipped state
+        assert risk_config.profile_for("kerala") is None
+        assert risk_config.profile_for("kerala__wayanad") is None
+
+    def test_normalisation_is_unchanged_without_a_profile(self):
+        from app.services import risk_config
+
+        assert risk_config.normalize("rainfall_24h", 64.4) == risk_config.normalize(
+            "rainfall_24h", 64.4, None
+        )
+
+    def test_a_profile_can_override_a_curve_without_touching_scoring_code(self):
+        from app.services import risk_config
+
+        default = risk_config.normalize("rainfall_24h", 64.4)
+        profile = {"features": {"rainfall_24h": {"curve": [[0, 0.0], [64.4, 1.0]]}}}
+        overridden = risk_config.normalize("rainfall_24h", 64.4, profile)
+        assert default == pytest.approx(0.45)
+        assert overridden == pytest.approx(1.0)
+
+    def test_a_profile_override_merges_rather_than_replaces(self):
+        """A profile restates only what differs; the rest comes from the global config."""
+        from app.services import risk_config
+
+        profile = {"features": {"rainfall_24h": {"weight": 0.5}}}
+        merged = risk_config.feature_config("rainfall_24h", profile)
+        assert merged["weight"] == 0.5
+        assert merged["curve"] == risk_config.feature_config("rainfall_24h")["curve"]
+        assert merged["unit"] == "mm"
+
+    def test_district_profile_falls_back_to_its_state(self, monkeypatch):
+        from app.services import risk_config
+
+        monkeypatch.setattr(risk_config, "_profiles", lambda: {"kerala": {"label": "test"}})
+        assert risk_config.profile_for("kerala__wayanad")["label"] == "test"
+        assert risk_config.profile_for("assam__cachar") is None

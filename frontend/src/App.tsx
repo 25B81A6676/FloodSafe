@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { ScopeBar } from './components/ScopeBar'
 import { FreshnessBadge, Spinner, timeAgo } from './components/ui'
 import { useAsync, useStored } from './hooks/useApi'
 import { useSimulation } from './hooks/useSimulation'
@@ -12,7 +13,8 @@ type Page = 'dashboard' | 'authority' | 'methodology'
 
 export default function App() {
   const [page, setPage] = useStored<Page>('floodsafe.page', 'dashboard')
-  const [regionId, setRegionId] = useStored<string>('floodsafe.region', 'uttarakhand')
+  const [stateId, setStateId] = useStored<string>('floodsafe.state', '')
+  const [districtId, setDistrictId] = useStored<string>('floodsafe.district', '')
   const [storedLocationId, setStoredLocationId] = useStored<string>('floodsafe.location', '')
 
   /* One counter drives every manual refresh. Pages include it in their fetch
@@ -20,15 +22,33 @@ export default function App() {
      loops, and no page needs its own refresh plumbing. */
   const [refreshTick, setRefreshTick] = useState(0)
 
-  const regions = useAsync(() => api.regions(), [])
+  /* The one scope the whole app is looking at. Every existing endpoint already
+     takes a region_id, and the backend resolves 'india', a state slug and a
+     district slug through the same path as a curated region — so this single
+     derived value drives the dashboard, the map, the command centre and the
+     risk grid without any of them knowing the hierarchy exists. */
+  const regionId = districtId || stateId || 'india'
+
+  const states = useAsync(() => api.states(), [])
+  const districts = useAsync(
+    () => api.districts(stateId),
+    [stateId],
+    { enabled: Boolean(stateId) },
+  )
   const locations = useAsync(() => api.locations(regionId), [regionId])
   const sources = useAsync(() => api.sources(), [refreshTick], { pollMs: 60_000 })
 
-  /* The locations list lags a region change by one fetch (useAsync keeps the
+  const stateList = states.data?.states ?? []
+  const districtList = useMemo(
+    () => (stateId && districts.data?.state_id === stateId ? districts.data.districts : []),
+    [stateId, districts.data],
+  )
+
+  /* The locations list lags a scope change by one fetch (useAsync keeps the
      previous value so the UI doesn't blank). Comparing the payload's own
-     region_id tells us whether the list on hand actually belongs to the region
+     region_id tells us whether the list on hand actually belongs to the scope
      that is selected — without it the dashboard briefly requests a location
-     from the region we just left. */
+     from the scope we just left. */
   const regionReady = locations.data?.region_id === regionId
   const locationList = useMemo(
     () => (regionReady ? (locations.data?.locations ?? []) : []),
@@ -38,11 +58,19 @@ export default function App() {
   /* Derived during render rather than corrected by an effect, so it is never
      momentarily pointing at another region's location. */
   const locationId = useMemo(() => {
-    if (locationList.length === 0) return ''
+    if (locationList.length === 0) {
+      /* Resolving a district's settlements means a live Overpass query, which
+         takes tens of seconds the first time a district is opened. A district
+         can be assessed from its own centroid straight away, so fall back to
+         that rather than blanking the dashboard while OSM answers — the
+         dropdown fills in behind it. The id is the one the backend already
+         serves for a district centroid, so nothing here is invented. */
+      return districtId ? `loc_${districtId}` : ''
+    }
     return locationList.some((l) => l.id === storedLocationId)
       ? storedLocationId
       : locationList[0].id
-  }, [locationList, storedLocationId])
+  }, [locationList, storedLocationId, districtId])
 
   // Persist the corrected value so a reload starts where the user left off.
   useEffect(() => {
@@ -85,6 +113,26 @@ export default function App() {
       setPage('dashboard')
     },
     [setStoredLocationId, setPage],
+  )
+
+  /* Changing one level invalidates every level below it. Clearing here rather
+     than in an effect means the app never spends a render holding a district
+     that does not belong to the selected state. */
+  const selectState = useCallback(
+    (id: string) => {
+      setStateId(id)
+      setDistrictId('')
+      setStoredLocationId('')
+    },
+    [setStateId, setDistrictId, setStoredLocationId],
+  )
+
+  const selectDistrict = useCallback(
+    (id: string) => {
+      setDistrictId(id)
+      setStoredLocationId('')
+    },
+    [setDistrictId, setStoredLocationId],
   )
 
   const exitSimulation = useCallback(async () => {
@@ -187,40 +235,6 @@ export default function App() {
             </span>
           )}
 
-          <label className="field field-region">
-            <span className="field-label">Region</span>
-            <select
-              value={regionId}
-              onChange={(e) => setRegionId(e.target.value)}
-              aria-label="Pilot region"
-            >
-              {(regions.data?.regions ?? []).map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.display_name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          {page !== 'methodology' && (
-            <label className="field field-location">
-              <span className="field-label">Location</span>
-              <select
-                value={locationId}
-                onChange={(e) => setStoredLocationId(e.target.value)}
-                aria-label="Monitoring location"
-                disabled={!regionReady || locationList.length === 0}
-              >
-                {locationList.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.name}
-                    {l.district ? ` · ${l.district}` : ''}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-
           <button
             className="btn btn-sm btn-refresh"
             onClick={refreshAll}
@@ -232,14 +246,38 @@ export default function App() {
             Refresh
           </button>
         </div>
+
+        {page !== 'methodology' && (
+          <ScopeBar
+            states={stateList}
+            districts={districtList}
+            locations={locationList}
+            stateId={stateId}
+            districtId={districtId}
+            locationId={locationId}
+            onState={selectState}
+            onDistrict={selectDistrict}
+            onLocation={setStoredLocationId}
+            locationsLoading={locations.loading && !regionReady}
+            locationNote={locations.data?.notes?.[0] ?? null}
+          />
+        )}
       </header>
 
       <main className="main">
-        {!regionReady && !locations.error && (
-          <div className="empty">Loading {regions.data?.regions.find((r) => r.id === regionId)?.display_name ?? 'region'}…</div>
+        {!regionReady && !locationId && !locations.error && (
+          <div className="empty">
+            Loading {locations.data?.region_name ?? stateList.find((s) => s.id === stateId)?.name ?? 'India'}…
+          </div>
+        )}
+        {locations.error && <div className="empty">{locations.error}</div>}
+        {states.error && (
+          <div className="empty">
+            Could not load the India geography dataset: {states.error}
+          </div>
         )}
 
-        {regionReady && page === 'dashboard' && locationId && (
+        {locationId && page === 'dashboard' && (
           <Dashboard
             regionId={regionId}
             selectedLocation={locationId}
@@ -251,7 +289,7 @@ export default function App() {
             refreshTick={refreshTick}
           />
         )}
-        {regionReady && page === 'authority' && (
+        {(regionReady || locationId) && page === 'authority' && (
           <Authority
             regionId={regionId}
             onSelectLocation={selectLocation}

@@ -56,13 +56,20 @@ export function Authority({
   const infraCounts = data.infrastructure?.counts ?? {}
   const exposure = data.exposure
 
+  /* One table, three meanings. At national scope a row is a state, at state
+     scope a district, and below that an individual monitoring location — so the
+     heading has to say which, or the counts are ambiguous. */
+  const rowLabel = { state: 'States', district: 'Districts', location: 'Monitoring sites' }[
+    data.row_kind ?? 'location'
+  ]
+
   return (
     <div className="grid" style={{ gap: 'var(--space-sm)' }}>
       {/* headline counters */}
       <div className="stat-strip">
         <div className="stat">
           <div className="stat-num">{data.totals.monitoring_locations}</div>
-          <div className="stat-lbl">Monitoring sites</div>
+          <div className="stat-lbl">{rowLabel}</div>
         </div>
         {RISK_ORDER.map((lvl) => (
           <div className="stat" key={lvl}>
