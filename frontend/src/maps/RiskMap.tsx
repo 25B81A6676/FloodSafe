@@ -28,14 +28,30 @@ interface Props {
   onSelect?: (locationId: string) => void
   center: [number, number]
   zoom: number
+  /** Fit this extent instead of using `zoom`, when the whole scope should show. */
+  bounds?: [[number, number], [number, number]] | null
   tall?: boolean
 }
 
-function Recentre({ center, zoom }: { center: [number, number]; zoom: number }) {
+function Recentre({
+  center,
+  zoom,
+  bounds,
+}: {
+  center: [number, number]
+  zoom: number
+  bounds?: [[number, number], [number, number]] | null
+}) {
   const map = useMap()
   useEffect(() => {
-    map.setView(center, zoom, { animate: true })
-  }, [center[0], center[1], zoom]) // eslint-disable-line react-hooks/exhaustive-deps
+    /* Fitting the scope's real extent beats any fixed zoom: India needs ~30
+       degrees of latitude, which does not fit at zoom 5 in a short map pane, and
+       the right zoom differs for Rajasthan and for Sikkim. fitBounds solves all
+       of them from the same bbox the rest of the app already uses. */
+    if (bounds) map.fitBounds(bounds, { animate: true, padding: [14, 14] })
+    else map.setView(center, zoom, { animate: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [center[0], center[1], zoom, bounds?.[0][0], bounds?.[0][1], bounds?.[1][0], bounds?.[1][1]])
   return null
 }
 
@@ -54,6 +70,7 @@ export function RiskMap({
   onSelect,
   center,
   zoom,
+  bounds,
   tall = false,
 }: Props) {
   const [show, setShow] = useState({
@@ -113,7 +130,7 @@ export function RiskMap({
         style={{ height: '100%', width: '100%' }}
         preferCanvas
       >
-        <Recentre center={center} zoom={zoom} />
+        <Recentre center={center} zoom={zoom} bounds={bounds} />
         {/* OpenStreetMap tiles, darkened in CSS to match the console theme.
             Attribution is preserved exactly as the licence requires. */}
         <TileLayer

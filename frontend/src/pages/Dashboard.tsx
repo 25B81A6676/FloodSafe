@@ -20,7 +20,7 @@ import { useAsync } from '../hooks/useApi'
 import type { SimulationState } from '../hooks/useSimulation'
 import { RiskMap } from '../maps/RiskMap'
 import { api } from '../services/api'
-import type { DashboardSummary, LatLon, MonitoringSnapshot } from '../types'
+import type { BBox, DashboardSummary, LatLon, MonitoringSnapshot } from '../types'
 
 interface Props {
   regionId: string
@@ -29,7 +29,7 @@ interface Props {
   summary: DashboardSummary | null
   summaryError: string | null
   /** Centre/zoom for the CURRENT scope, known before any fetch returns. */
-  scopeView: { center: LatLon; zoom: number; name: string } | null
+  scopeView: { center: LatLon; zoom: number; name: string; bbox: BBox | null } | null
   onDataChanged: () => void
   /** The one authoritative simulation state, owned by App. */
   simulation: SimulationState
@@ -148,6 +148,16 @@ export function Dashboard({
           : [22.5, 79.0]
 
   const mapZoom = focusOnLocation ? 10 : (summary?.region.default_zoom ?? scopeView?.zoom ?? 5)
+
+  /* Frame the whole scope unless the user has drilled down to one place. */
+  const extent = summary?.region.bbox ?? scopeView?.bbox ?? null
+  const mapBounds: [[number, number], [number, number]] | null =
+    !focusOnLocation && extent
+      ? [
+          [extent.min_lat, extent.min_lon],
+          [extent.max_lat, extent.max_lon],
+        ]
+      : null
 
   return (
     <div className="dash-layout">
@@ -295,6 +305,7 @@ export function Dashboard({
             onSelect={onSelectLocation}
             center={center}
             zoom={mapZoom}
+            bounds={mapBounds}
           />
         </Card>
 

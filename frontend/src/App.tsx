@@ -112,15 +112,31 @@ export default function App() {
      fetch later, so relying on it alone left the map sitting on the previous
      scope — and, worse, drawing that scope's markers. */
   const scopeView = useMemo(() => {
+    const centre = { latitude: 22.5, longitude: 79.0 }
     if (districtId) {
       const district = districtList.find((d) => d.id === districtId)
-      return district ? { center: district.center, zoom: 9, name: district.name } : null
+      return district
+        ? { center: district.center, zoom: 9, name: district.name, bbox: district.bbox }
+        : null
     }
     if (stateId) {
       const state = stateList.find((s) => s.id === stateId)
-      return state ? { center: state.center, zoom: 7, name: state.name } : null
+      return state ? { center: state.center, zoom: 7, name: state.name, bbox: state.bbox } : null
     }
-    return { center: { latitude: 22.5, longitude: 79.0 }, zoom: 5, name: 'India' }
+    /* The union of every state bbox IS the extent of the dataset, so the
+       national view frames the real country rather than a guessed zoom. */
+    const bbox = stateList.length
+      ? stateList.reduce(
+          (acc, s) => ({
+            min_lat: Math.min(acc.min_lat, s.bbox.min_lat),
+            min_lon: Math.min(acc.min_lon, s.bbox.min_lon),
+            max_lat: Math.max(acc.max_lat, s.bbox.max_lat),
+            max_lon: Math.max(acc.max_lon, s.bbox.max_lon),
+          }),
+          { ...stateList[0].bbox },
+        )
+      : null
+    return { center: centre, zoom: 5, name: 'India', bbox }
   }, [districtId, districtList, stateId, stateList])
 
   useEffect(() => {

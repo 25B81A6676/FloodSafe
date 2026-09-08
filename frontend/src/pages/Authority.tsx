@@ -125,6 +125,12 @@ export function Authority({
               onSelect={(id) => setSelected(id)}
               center={[data.region.center.latitude, data.region.center.longitude]}
               zoom={data.region.default_zoom}
+              /* Frame the whole scope, so a national view shows the country
+                 rather than whatever fits at a fixed zoom. */
+              bounds={[
+                [data.region.bbox.min_lat, data.region.bbox.min_lon],
+                [data.region.bbox.max_lat, data.region.bbox.max_lon],
+              ]}
               tall
             />
           </Card>
