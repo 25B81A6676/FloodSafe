@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo } from 'react'
 import { AntecedentChart, DischargeChart, RainfallChart, RiskTrendChart } from '../charts/Charts'
 import { AlertPanel } from '../components/AlertPanel'
+import { FloodAlerts } from '../components/FloodAlerts'
 import { Explainability } from '../components/Explainability'
 import { RiskCard } from '../components/RiskCard'
 import { SimulationPanel } from '../components/SimulationPanel'
@@ -176,6 +177,12 @@ export function Dashboard({
         )}
 
         {snap && <Explainability risk={snap.risk} />}
+
+        <FloodAlerts
+          location={snap?.location ?? null}
+          stateId={summary?.region.state_id ?? scopeView?.name ?? null}
+          stateName={summary?.region.state_name ?? scopeView?.name ?? null}
+        />
       </div>
 
       {/* ------------------------------------------------ centre column */}

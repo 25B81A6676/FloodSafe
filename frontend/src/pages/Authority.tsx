@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { AlertPanel } from '../components/AlertPanel'
+import { AlertDevicePanel } from '../components/AlertDevicePanel'
 import {
   Card,
   ErrorBox,
@@ -59,6 +60,11 @@ export function Authority({
     return (
       <div className="grid" style={{ gap: 'var(--space-sm)' }}>
         <Skeleton height={90} />
+        {/* Registered devices do not depend on the risk summary, so they stay
+            visible while a wide scope is still being assessed - waiting 30
+            seconds to find out whether your phone registered is no use during
+            a demonstration. */}
+        <AlertDevicePanel refreshTick={refreshTick} />
         <Skeleton height={520} />
       </div>
     )
@@ -224,6 +230,8 @@ export function Authority({
         </div>
 
         <div className="col">
+          <AlertDevicePanel refreshTick={refreshTick} />
+
           <Card
             title="Active advisories"
             icon="🚨"

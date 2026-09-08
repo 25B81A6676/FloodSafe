@@ -120,6 +120,50 @@ CREATE TABLE IF NOT EXISTS simulation_scenarios (
     loaded_at     TEXT NOT NULL
 );
 
+-- Registered phones for flood early-warning push notifications.
+-- New tables, so CREATE TABLE IF NOT EXISTS upgrades an existing database on
+-- its own; no ALTER is needed and no existing row is touched.
+CREATE TABLE IF NOT EXISTS devices (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    fcm_token     TEXT NOT NULL UNIQUE,
+    label         TEXT,
+    location_id   TEXT,
+    location_name TEXT,
+    district      TEXT,
+    state_id      TEXT,
+    state_name    TEXT,
+    latitude      REAL,
+    longitude     REAL,
+    active        INTEGER NOT NULL DEFAULT 1,
+    created_at    TEXT NOT NULL,
+    updated_at    TEXT NOT NULL,
+    last_seen_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_devices_location ON devices(location_id, active);
+CREATE INDEX IF NOT EXISTS idx_devices_district ON devices(state_id, district, active);
+
+-- One row per dispatch ATTEMPT. Doubles as the cooldown ledger: a repeat alert
+-- for the same location and severity inside the cooldown window is suppressed
+-- by looking here, so a dashboard refresh cannot re-notify anyone.
+CREATE TABLE IF NOT EXISTS alert_dispatches (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    location_id   TEXT NOT NULL,
+    location_name TEXT,
+    risk_level    TEXT NOT NULL,
+    risk_score    REAL,
+    previous_level TEXT,
+    mode          TEXT NOT NULL,
+    kind          TEXT NOT NULL,
+    targeted      INTEGER NOT NULL DEFAULT 0,
+    accepted      INTEGER NOT NULL DEFAULT 0,
+    rejected      INTEGER NOT NULL DEFAULT 0,
+    status        TEXT NOT NULL,
+    detail        TEXT,
+    sent_at       TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_dispatch_cooldown
+    ON alert_dispatches(location_id, risk_level, sent_at DESC);
+
 CREATE TABLE IF NOT EXISTS simulation_state (
     session_id    TEXT PRIMARY KEY,
     scenario_id   TEXT,

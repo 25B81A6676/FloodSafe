@@ -116,6 +116,7 @@ from app.api.routes import (  # noqa: E402
     gis,
     health,
     monitoring,
+    notifications,
     regions,
     risk,
     simulation,
@@ -135,6 +136,7 @@ app.include_router(monitoring.router, prefix=API)
 app.include_router(dashboard.router, prefix=API)
 app.include_router(alerts.router, prefix=API)
 app.include_router(simulation.router, prefix=API)
+app.include_router(notifications.router, prefix=API)
 
 
 @app.get("/")

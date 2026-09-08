@@ -19,6 +19,7 @@ from app.config.logging_config import get_logger
 from app.database import repository
 from app.models.enums import RunMode
 from app.services import (
+    alert_dispatch,
     alert_service,
     elevation_service,
     feature_engineering,
@@ -266,6 +267,19 @@ async def assess_locations(
                 repository.save_hydrology(loc.id, raw["hydrology"], raw["river"])
             except Exception as exc:  # noqa: BLE001 - persistence must not break a response
                 log.warning("could not persist observations for %s: %s", loc.id, exc)
+
+            # Flood early warning. Reads the level the engine just produced and
+            # the one stored before it, so this fires on a real transition into
+            # HIGH/EXTREME rather than on every dashboard refresh. It is awaited
+            # rather than backgrounded so a dispatch is never silently dropped,
+            # and it swallows its own errors - a messaging failure must never
+            # cost the caller its risk assessment. Only persisted monitoring
+            # locations reach here; risk-map grid cells never do.
+            await alert_dispatch.on_risk_assessed(
+                loc.to_dict(), risk,
+                previous["risk_level"] if previous else None,
+                mode=mode,
+            )
 
         results.append({
             "location": loc.to_dict(),

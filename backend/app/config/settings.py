@@ -77,6 +77,51 @@ class Settings(BaseSettings):
     # The same, for a risk-grid cell, which covers more ground than a point.
     osm_grid_search_radius_m: float = 4000.0
 
+    # --- flood-alert push notifications ----------------------------------
+    # Firebase Cloud Messaging. All optional: with none of these set the
+    # application starts normally, every other feature works, and the
+    # notification status endpoint reports "not configured" rather than
+    # pretending alerts are being delivered.
+    fcm_project_id: str = ""
+    # Path to the service-account JSON, OR the JSON itself in an env var. Never
+    # commit either. The file path is preferred locally; the inline form exists
+    # for hosts that only offer environment variables.
+    fcm_service_account_file: str = ""
+    fcm_service_account_json: str = ""
+
+    # Firebase *client* configuration. These are public by design - the web SDK
+    # exposes them in any browser - and are served to the frontend at runtime so
+    # that pointing the app at a different Firebase project needs no rebuild.
+    # The service-account key above is the secret; none of these are.
+    firebase_web_api_key: str = ""
+    firebase_auth_domain: str = ""
+    firebase_web_project_id: str = ""
+    firebase_messaging_sender_id: str = ""
+    firebase_app_id: str = ""
+    # Web Push certificate public key ("VAPID key") from Firebase console.
+    firebase_vapid_key: str = ""
+
+    # Emergency alerts fire only on a transition INTO one of these levels.
+    alert_trigger_levels: str = "HIGH,EXTREME"
+    # Suppression window for a repeat alert at the same location and severity,
+    # so a dashboard refresh or a flapping score cannot re-notify anyone.
+    alert_cooldown_minutes: int = 30
+    # Which registered devices an alert reaches: location | district | state.
+    alert_targeting_scope: str = "location"
+    # SAFETY DEFAULT. While true, a risk transition never sends a real push -
+    # it is evaluated and logged only. The simulator can therefore drive a
+    # location to EXTREME on stage without paging anyone. Test alerts, which are
+    # explicitly labelled as tests, are still sent.
+    flood_alert_test_mode: bool = True
+    # Deep link used in the notification body and click action.
+    public_dashboard_url: str = "http://localhost:5173"
+    # Bound on how long a dispatch may hold up a risk response.
+    fcm_timeout_seconds: float = 10.0
+
+    @property
+    def alert_trigger_level_set(self) -> set[str]:
+        return {lvl.strip().upper() for lvl in self.alert_trigger_levels.split(",") if lvl.strip()}
+
     # --- external endpoints (all free, no API key) -----------------------
     open_meteo_forecast_url: str = "https://api.open-meteo.com/v1/forecast"
     open_meteo_archive_url: str = "https://archive-api.open-meteo.com/v1/archive"

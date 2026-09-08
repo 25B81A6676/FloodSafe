@@ -656,3 +656,72 @@ export interface LocationList {
   total_found?: number
   truncated?: boolean
 }
+
+/* ---------------------------------------------------------------------------
+ * Flood-alert push notifications.
+ * A registration token never crosses this boundary — only a masked hint.
+ * ------------------------------------------------------------------------ */
+export interface FirebaseConfig {
+  apiKey: string | null
+  authDomain: string | null
+  projectId: string | null
+  messagingSenderId: string | null
+  appId: string | null
+}
+
+export interface NotificationConfig {
+  configured: boolean
+  firebase: FirebaseConfig
+  vapidKey: string | null
+  serverReady: boolean
+}
+
+export interface AlertDevice {
+  id: number
+  label: string | null
+  /** Masked fragment of the FCM token, enough to tell two phones apart. */
+  token_hint: string
+  location_id: string | null
+  location_name: string | null
+  district: string | null
+  state_id: string | null
+  state_name: string | null
+  latitude: number | null
+  longitude: number | null
+  active: boolean
+  created_at: string
+  last_seen_at: string
+}
+
+export interface AlertDispatch {
+  id: number
+  location_id: string
+  location_name: string | null
+  risk_level: string
+  risk_score: number | null
+  previous_level: string | null
+  mode: string
+  kind: string
+  targeted: number
+  accepted: number
+  rejected: number
+  status: string
+  detail: string | null
+  sent_at: string
+}
+
+export interface NotificationStatus {
+  configured: boolean
+  project_id: string | null
+  service_account: string | null
+  credential_source: string | null
+  test_mode: boolean
+  cooldown_minutes: number
+  targeting_scope: string
+  trigger_levels: string[]
+  active_devices: number
+  total_devices: number
+  devices: AlertDevice[]
+  recent_dispatches: AlertDispatch[]
+  note: string
+}

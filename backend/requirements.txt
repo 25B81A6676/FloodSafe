@@ -3,6 +3,10 @@ uvicorn[standard]>=0.27
 pydantic>=2.5
 pydantic-settings>=2.1
 httpx>=0.26
+# Only used to mint an OAuth2 token for Firebase Cloud Messaging.
+# The push itself goes over httpx; firebase-admin would pull in grpcio
+# and the Firestore client to send one HTTPS POST.
+google-auth>=2.28
 pandas>=2.0
 numpy>=1.26
 scikit-learn>=1.3

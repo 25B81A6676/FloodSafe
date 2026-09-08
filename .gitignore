@@ -21,6 +21,11 @@ dist-ssr/
 .env.*
 !.env.example
 
+# Firebase service-account keys and anything else key-shaped.
+secrets/
+*service-account*.json
+*serviceAccount*.json
+
 # Runtime data: SQLite cache is regenerated on first run
 data/cache/*.db
 data/cache/*.db-wal

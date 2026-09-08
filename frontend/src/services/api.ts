@@ -6,6 +6,7 @@
  * directly, and no risk calculation happens in the browser.
  */
 import type {
+  AlertDevice,
   DashboardSummary,
   District,
   GeographyInfo,
@@ -14,6 +15,8 @@ import type {
   MapLayers,
   ModelConfig,
   MonitoringSnapshot,
+  NotificationConfig,
+  NotificationStatus,
   Region,
   RiskMap,
   Scenario,
@@ -149,6 +152,46 @@ export const api = {
       readouts: SimulationReadouts
       monitoring?: MonitoringSnapshot
     }>('/simulation/run', { method: 'POST', body: JSON.stringify(body) }),
+
+  /* ---- flood-alert notifications ---- */
+  notificationConfig: () => request<NotificationConfig>('/notifications/config'),
+
+  notificationStatus: () => request<NotificationStatus>('/notifications/status'),
+
+  registerDevice: (body: {
+    fcm_token: string
+    location_id?: string
+    location_name?: string
+    district?: string | null
+    state_id?: string | null
+    state_name?: string | null
+    latitude?: number
+    longitude?: number
+    label?: string
+  }) =>
+    request<{
+      registered: boolean
+      device: AlertDevice
+      active_devices: number
+      notifications_configured: boolean
+      notice: string | null
+    }>('/notifications/register', { method: 'POST', body: JSON.stringify(body) }),
+
+  sendTestAlert: (locationId?: string) =>
+    request<{
+      status: string
+      targeted: number
+      accepted: number
+      rejected: number
+      detail: string | null
+      devices: string[]
+    }>(`/notifications/test${qs({ location_id: locationId })}`, { method: 'POST' }),
+
+  setDeviceActive: (deviceId: number, active: boolean) =>
+    request<{ device: AlertDevice }>(
+      `/notifications/devices/${deviceId}/${active ? 'enable' : 'disable'}`,
+      { method: 'POST' },
+    ),
 
   resetSimulation: (locationId?: string) =>
     request<{ active: boolean; monitoring?: MonitoringSnapshot }>(
