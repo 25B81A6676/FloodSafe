@@ -1,7 +1,22 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useAsync } from '../hooks/useApi'
 import { api } from '../services/api'
 import { Card, Spinner, timeAgo } from './ui'
+import type { AlertDispatch } from '../types'
+
+const KIND_LABEL: Record<string, string> = {
+  SIMULATION: 'SIMULATION',
+  EMERGENCY: 'REAL',
+  TEST: 'TEST',
+}
+
+/* Outcome wording for the Command Centre. "FCM accepted" is what the server
+   knows; nothing here claims a phone displayed the notification. */
+function dispatchOutcome(d: AlertDispatch): string {
+  if (d.status === 'NO_TARGETS') return 'no devices registered at this location'
+  if (d.status === 'SENDING') return 'sending…'
+  return `targeted ${d.targeted} · FCM accepted ${d.accepted}` + (d.rejected > 0 ? ` · rejected ${d.rejected}` : '')
+}
 
 /**
  * Registered phones, for the Command Centre.
@@ -17,6 +32,20 @@ export function AlertDevicePanel({ refreshTick }: { refreshTick: number }) {
   const [result, setResult] = useState<string | null>(null)
 
   const data = status.data
+
+  /* Registered phones grouped by place, so it is obvious at a glance which
+     phones a simulation at a given location will reach. */
+  const byLocation = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const d of data?.devices ?? []) {
+      if (!d.active) continue
+      const key = d.location_name ?? 'Unassigned'
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1])
+  }, [data])
+
+  const lastAlert = data?.recent_dispatches.find((d) => d.kind !== 'TEST') ?? null
 
   const sendTest = useCallback(async () => {
     setBusy(true)
@@ -59,9 +88,38 @@ export function AlertDevicePanel({ refreshTick }: { refreshTick: number }) {
 
       {data.configured && data.test_mode && (
         <p className="small muted">
-          <strong>Test mode is on.</strong> Risk transitions are evaluated and recorded but no
-          real emergency push is sent. Test alerts still send.
+          <strong>Test mode is on.</strong> Transitions in <em>real</em> measured risk are recorded
+          but not pushed. Simulator demo alerts and test alerts still send, labelled as
+          demonstrations.
         </p>
+      )}
+
+      {byLocation.length > 0 && (
+        <div className="device-summary">
+          <span className="device-summary-total">
+            Registered devices: <strong>{data.active_devices}</strong>
+          </span>
+          {byLocation.map(([place, count]) => (
+            <span key={place} className="device-summary-place">
+              {place}: <strong>{count}</strong>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {lastAlert && (
+        <div className={`last-alert last-alert-${lastAlert.risk_level.toLowerCase()}`}>
+          <div className="last-alert-head">
+            Last alert:{' '}
+            <strong>
+              {lastAlert.risk_level === 'EXTREME' ? '🚨' : '⚠️'} {lastAlert.risk_level}{' '}
+              {KIND_LABEL[lastAlert.kind] ?? lastAlert.kind}
+            </strong>
+          </div>
+          <div>Location: {lastAlert.location_name ?? lastAlert.location_id}</div>
+          <div className="mono">{dispatchOutcome(lastAlert)}</div>
+          <div className="faint">{timeAgo(lastAlert.sent_at)}</div>
+        </div>
       )}
 
       {data.devices.length === 0 ? (
@@ -109,9 +167,11 @@ export function AlertDevicePanel({ refreshTick }: { refreshTick: number }) {
           <ul className="dispatch-list">
             {data.recent_dispatches.slice(0, 5).map((d) => (
               <li key={d.id}>
-                <strong>{d.risk_level}</strong> {d.location_name ?? d.location_id}
-                {' · '}targeted {d.targeted} · FCM accepted {d.accepted}
-                {d.rejected > 0 && ` · rejected ${d.rejected}`}
+                <strong>{d.risk_level}</strong>{' '}
+                <span className="faint">{KIND_LABEL[d.kind] ?? d.kind}</span>{' '}
+                {d.location_name ?? d.location_id}
+                {' · '}
+                {dispatchOutcome(d)}
                 <span className="faint"> · {d.status.replace(/_/g, ' ').toLowerCase()}</span>
               </li>
             ))}

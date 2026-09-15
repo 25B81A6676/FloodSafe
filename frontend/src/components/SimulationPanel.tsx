@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Scenario, SimulationControl, SimulationReadouts } from '../types'
+import type { DemoAlert, Scenario, SimulationControl, SimulationReadouts } from '../types'
 
 interface Props {
   controls: SimulationControl[]
@@ -15,6 +15,37 @@ interface Props {
   onOverride: (overrides: Record<string, number>) => void
   /** Leaves simulation mode entirely and restores live measured values. */
   onExit: () => void
+  /** What the simulator is currently doing to the selected place. */
+  status?: { locationName: string; level: string; score: number } | null
+  /** The latest demonstration push, if one was sent this episode. */
+  demoAlert?: DemoAlert | null
+}
+
+/* Plain-language outcome of a demo push. Never says "delivered": Firebase
+   accepting a request is not proof a phone displayed anything. */
+function demoAlertLine(alert: DemoAlert): string {
+  switch (alert.status) {
+    case 'SENT':
+    case 'PARTIAL':
+      return (
+        'Target devices: ' + (alert.targeted ?? 0) +
+        ' · FCM accepted: ' + (alert.accepted ?? 0) +
+        (alert.rejected ? ' · rejected: ' + alert.rejected : '')
+      )
+    case 'NO_TARGETS':
+      return 'No phones are registered at ' + (alert.location_name ?? 'this location') +
+        '. Register a phone at this exact location first.'
+    case 'NOT_CONFIGURED':
+      return 'Firebase is not configured on the server, so nothing was sent.'
+    case 'DISABLED':
+      return 'Outbound network is disabled on the server, so nothing was sent.'
+    default:
+      return 'Send failed' + (alert.detail ? ': ' + alert.detail : '') + '. The next change will retry.'
+  }
+}
+
+function demoAlertSent(alert: DemoAlert): boolean {
+  return alert.status === 'SENT' || alert.status === 'PARTIAL'
 }
 
 const SEVERITY_TINT: Record<string, string> = {
@@ -36,6 +67,8 @@ export function SimulationPanel({
   onRunScenario,
   onOverride,
   onExit,
+  status,
+  demoAlert,
 }: Props) {
   // Slider positions are local so dragging stays smooth; changes are debounced
   // before they reach the backend.
@@ -150,6 +183,38 @@ export function SimulationPanel({
             Simulation is <strong>ON</strong>. Every value marked SIMULATION is a
             simulator input, not a measurement. Use <strong>Exit simulation</strong> to
             return to live data.
+          </div>
+        )}
+
+        {active && status && (
+          <div className="notice notice-sim mt10 sim-status" role="status" aria-live="polite">
+            <strong>⚠️ SIMULATION MODE</strong>
+            <div className="sim-status-grid">
+              <span>Location</span>
+              <strong>{status.locationName}</strong>
+              <span>Risk</span>
+              <strong>{status.level}</strong>
+              <span>Score</span>
+              <strong className="mono">{status.score}</strong>
+            </div>
+          </div>
+        )}
+
+        {active && demoAlert && (
+          <div
+            className={'notice mt10 demo-alert ' + (demoAlertSent(demoAlert) ? 'demo-alert-sent' : 'demo-alert-warn')}
+            role="status"
+            aria-live="polite"
+          >
+            <strong>
+              {demoAlertSent(demoAlert)
+                ? '🚨 ' + demoAlert.risk_level + ' DEMO ALERT SENT'
+                : '⚠ ' + demoAlert.risk_level + ' demo alert not sent'}
+            </strong>
+            <div>{demoAlertLine(demoAlert)}</div>
+            <div className="tiny" style={{ marginTop: 'var(--space-2xs)', opacity: 0.85 }}>
+              🧪 SIH DEMONSTRATION · one alert per level per simulation · Exit simulation to demonstrate again
+            </div>
           </div>
         )}
 

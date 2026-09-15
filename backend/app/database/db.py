@@ -159,7 +159,8 @@ CREATE TABLE IF NOT EXISTS alert_dispatches (
     rejected      INTEGER NOT NULL DEFAULT 0,
     status        TEXT NOT NULL,
     detail        TEXT,
-    sent_at       TEXT NOT NULL
+    sent_at       TEXT NOT NULL,
+    episode_id    TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_dispatch_cooldown
     ON alert_dispatches(location_id, risk_level, sent_at DESC);
@@ -169,7 +170,8 @@ CREATE TABLE IF NOT EXISTS simulation_state (
     scenario_id   TEXT,
     overrides     TEXT NOT NULL,
     active        INTEGER NOT NULL DEFAULT 0,
-    updated_at    TEXT NOT NULL
+    updated_at    TEXT NOT NULL,
+    episode_id    TEXT
 );
 """
 
@@ -213,6 +215,11 @@ MIGRATIONS: tuple[tuple[str, str, str], ...] = (
     ("monitoring_locations", "state_id", "TEXT"),
     ("monitoring_locations", "district_id", "TEXT"),
     ("monitoring_locations", "origin", "TEXT"),
+    # One simulation "episode" runs from the first override until Exit
+    # Simulation. Demo alerts are de-duplicated per episode, so a demonstration
+    # can be repeated after a reset without waiting out a wall-clock cooldown.
+    ("simulation_state", "episode_id", "TEXT"),
+    ("alert_dispatches", "episode_id", "TEXT"),
 )
 
 
@@ -223,6 +230,7 @@ MIGRATIONS: tuple[tuple[str, str, str], ...] = (
 POST_MIGRATION_INDEXES = """
 CREATE INDEX IF NOT EXISTS idx_locations_state ON monitoring_locations(state_id);
 CREATE INDEX IF NOT EXISTS idx_locations_district ON monitoring_locations(district_id);
+CREATE INDEX IF NOT EXISTS idx_dispatch_episode ON alert_dispatches(episode_id, location_id);
 """
 
 

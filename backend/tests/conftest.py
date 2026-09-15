@@ -20,6 +20,19 @@ os.environ["STARTUP_PREFETCH"] = "false"
 os.environ["LOG_LEVEL"] = "WARNING"
 # Every test runs offline. Tests that need upstream data inject it explicitly.
 os.environ["FLOODSAFE_DISABLE_NETWORK"] = "1"
+# Hermetic Firebase configuration. Settings also read the developer's .env, so
+# without this the suite would pick up a real service account the moment one is
+# configured locally - making results depend on the machine, and putting real
+# credentials one bug away from a real push. Environment variables take
+# precedence over .env, so blanking them here isolates every test.
+for _var in (
+    "FCM_PROJECT_ID", "FCM_SERVICE_ACCOUNT_FILE", "FCM_SERVICE_ACCOUNT_JSON",
+    "FIREBASE_WEB_API_KEY", "FIREBASE_AUTH_DOMAIN", "FIREBASE_WEB_PROJECT_ID",
+    "FIREBASE_MESSAGING_SENDER_ID", "FIREBASE_APP_ID", "FIREBASE_VAPID_KEY",
+):
+    os.environ[_var] = ""
+os.environ["FLOOD_ALERT_TEST_MODE"] = "true"
+os.environ["SIMULATION_ALERTS_ENABLED"] = "true"
 
 import pytest  # noqa: E402
 

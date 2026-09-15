@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../services/api'
-import type { SimulationReadouts } from '../types'
+import type { DemoAlert, SimulationReadouts } from '../types'
 
 /**
  * The single authoritative simulation state for the whole frontend.
@@ -22,6 +22,8 @@ export interface SimulationState {
   readouts: SimulationReadouts | null
   /** True while a run/exit request is in flight. */
   busy: boolean
+  /** The most recent demonstration push sent this episode, if any. */
+  lastDemoAlert: DemoAlert | null
   refresh: () => Promise<void>
   runScenario: (scenarioId: string) => Promise<void>
   applyOverrides: (overrides: Record<string, number>) => Promise<void>
@@ -35,6 +37,7 @@ export function useSimulation(locationId: string | null): SimulationState {
   const [overrides, setOverrides] = useState<Record<string, number>>({})
   const [readouts, setReadouts] = useState<SimulationReadouts | null>(null)
   const [busy, setBusy] = useState(false)
+  const [lastDemoAlert, setLastDemoAlert] = useState<DemoAlert | null>(null)
 
   const apply = useCallback(
     (s: {
@@ -74,7 +77,11 @@ export function useSimulation(locationId: string | null): SimulationState {
     async (id: string) => {
       setBusy(true)
       try {
-        apply(await api.runSimulation({ scenario_id: id, location_id: locationId ?? undefined }))
+        const result = await api.runSimulation({ scenario_id: id, location_id: locationId ?? undefined })
+        apply(result)
+        // Keep the last alert that was actually due; a run with nothing to send
+        // returns null and must not wipe the "DEMO ALERT SENT" readout.
+        if (result.demo_alert) setLastDemoAlert(result.demo_alert)
       } finally {
         setBusy(false)
       }
@@ -86,7 +93,9 @@ export function useSimulation(locationId: string | null): SimulationState {
     async (next: Record<string, number>) => {
       setBusy(true)
       try {
-        apply(await api.runSimulation({ overrides: next, location_id: locationId ?? undefined }))
+        const result = await api.runSimulation({ overrides: next, location_id: locationId ?? undefined })
+        apply(result)
+        if (result.demo_alert) setLastDemoAlert(result.demo_alert)
       } finally {
         setBusy(false)
       }
@@ -99,10 +108,12 @@ export function useSimulation(locationId: string | null): SimulationState {
     try {
       await api.resetSimulation(locationId ?? undefined)
       apply({ active: false, scenario_id: null, overrides: {}, readouts: null })
+      // A new episode starts clean; the next HIGH/EXTREME may alert again.
+      setLastDemoAlert(null)
     } finally {
       setBusy(false)
     }
   }, [apply, locationId])
 
-  return { active, scenarioId, overrides, readouts, busy, refresh, runScenario, applyOverrides, exit }
+  return { active, scenarioId, overrides, readouts, busy, lastDemoAlert, refresh, runScenario, applyOverrides, exit }
 }

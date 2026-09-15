@@ -407,3 +407,324 @@ class TestNotificationApi:
         raw = client.get("/api/notifications/config").text
         for secret in ("private_key", "BEGIN PRIVATE KEY", "client_email"):
             assert secret not in raw
+
+
+# ==========================================================================
+# Simulator demonstration alerts
+# ==========================================================================
+EPISODE = "episode-one"
+
+
+@pytest.mark.asyncio
+class TestSimulationDemoAlerts:
+    """The simulator drives the SELECTED location; its phones get a real,
+    clearly-labelled FCM push when that location enters HIGH or EXTREME."""
+
+    async def _sim(self, level: str, score: float, *, episode: str = EPISODE, location=GAURIKUND):
+        return await alert_dispatch.dispatch_simulation(
+            location, risk(level, score), episode_id=episode
+        )
+
+    async def test_entering_high_sends_a_high_demo_alert(self, sent):
+        device_registry.register(fcm_token=TOKEN_A, location_id=GAURIKUND["id"])
+        result = await self._sim("HIGH", 64)
+        assert result["status"] == "SENT"
+        assert len(sent) == 1
+        assert sent[0]["severity"] == "HIGH"
+        assert sent[0]["title"] == "⚠️ FLOODSAFE HIGH SIMULATION ALERT"
+
+    async def test_entering_extreme_sends_an_extreme_demo_alert(self, sent):
+        device_registry.register(fcm_token=TOKEN_A, location_id=GAURIKUND["id"])
+        await self._sim("EXTREME", 87)
+        assert len(sent) == 1
+        assert sent[0]["title"] == "🚨 FLOODSAFE EXTREME SIMULATION ALERT"
+
+    async def test_below_high_sends_nothing(self, sent):
+        device_registry.register(fcm_token=TOKEN_A, location_id=GAURIKUND["id"])
+        for level, score in (("SAFE", 10), ("LOW", 30), ("MODERATE", 50)):
+            assert await self._sim(level, score) is None
+        assert sent == []
+
+    async def test_high_to_high_does_not_spam(self, sent):
+        device_registry.register(fcm_token=TOKEN_A, location_id=GAURIKUND["id"])
+        await self._sim("HIGH", 61)
+        await self._sim("HIGH", 70)
+        await self._sim("HIGH", 79)
+        assert len(sent) == 1
+
+    async def test_extreme_to_extreme_does_not_spam(self, sent):
+        device_registry.register(fcm_token=TOKEN_A, location_id=GAURIKUND["id"])
+        await self._sim("EXTREME", 81)
+        await self._sim("EXTREME", 90)
+        assert len(sent) == 1
+
+    async def test_high_to_extreme_sends_the_upgrade(self, sent):
+        """The exact sequence from the brief: 40->50 nothing, 50->61 HIGH,
+        61->70 nothing, 70->81 EXTREME, 81->90 nothing."""
+        device_registry.register(fcm_token=TOKEN_A, location_id=GAURIKUND["id"])
+        for level, score in (("LOW", 40), ("MODERATE", 50), ("HIGH", 61),
+                             ("HIGH", 70), ("EXTREME", 81), ("EXTREME", 90)):
+            await self._sim(level, score)
+        assert [c["severity"] for c in sent] == ["HIGH", "EXTREME"]
+
+    async def test_falling_back_to_high_after_extreme_does_not_alert(self, sent):
+        device_registry.register(fcm_token=TOKEN_A, location_id=GAURIKUND["id"])
+        await self._sim("EXTREME", 90)
+        await self._sim("HIGH", 70)
+        assert len(sent) == 1
+
+    async def test_flapping_within_one_episode_does_not_repeat(self, sent):
+        device_registry.register(fcm_token=TOKEN_A, location_id=GAURIKUND["id"])
+        await self._sim("HIGH", 62)
+        await self._sim("MODERATE", 55)
+        await self._sim("HIGH", 63)
+        assert len(sent) == 1
+
+    async def test_a_new_episode_can_alert_again(self, sent):
+        device_registry.register(fcm_token=TOKEN_A, location_id=GAURIKUND["id"])
+        await self._sim("HIGH", 64, episode="first")
+        await self._sim("HIGH", 64, episode="first")
+        await self._sim("HIGH", 64, episode="second")
+        assert len(sent) == 2, "after Exit Simulation the demonstration must be repeatable"
+
+    async def test_all_devices_at_the_location_are_targeted(self, sent):
+        for token in (TOKEN_A, TOKEN_B, TOKEN_C):
+            device_registry.register(fcm_token=token, location_id=GAURIKUND["id"])
+        result = await self._sim("EXTREME", 87)
+        assert sorted(sent[0]["tokens"]) == sorted([TOKEN_A, TOKEN_B, TOKEN_C])
+        assert result["targeted"] == 3 and result["accepted"] == 3
+
+    async def test_wrong_location_devices_are_excluded(self, sent):
+        """Phones at Gaurikund receive; a phone at Rishikesh does not."""
+        for token in (TOKEN_A, TOKEN_B):
+            device_registry.register(fcm_token=token, location_id=GAURIKUND["id"])
+        device_registry.register(fcm_token=TOKEN_C, location_id=RISHIKESH["id"])
+        await self._sim("EXTREME", 87)
+        assert TOKEN_C not in sent[0]["tokens"]
+        assert len(sent[0]["tokens"]) == 2
+
+    async def test_no_registered_devices_is_reported_not_faked(self, sent):
+        device_registry.register(fcm_token=TOKEN_C, location_id=RISHIKESH["id"])
+        result = await self._sim("EXTREME", 87)
+        assert sent == []
+        assert result["status"] == "NO_TARGETS"
+        assert result["accepted"] == 0
+
+    async def test_one_invalid_token_does_not_block_the_others(self, monkeypatch):
+        async def partial(tokens, **kwargs):
+            return fcm_client.SendResult(
+                status="PARTIAL", accepted=len(tokens) - 1, rejected=1, dead_tokens=[tokens[-1]]
+            )
+
+        monkeypatch.setattr(alert_dispatch.fcm_client, "send_to_tokens", partial)
+        for token in (TOKEN_A, TOKEN_B, TOKEN_C):
+            device_registry.register(fcm_token=token, location_id=GAURIKUND["id"])
+        result = await self._sim("EXTREME", 87)
+        assert result["accepted"] == 2
+        assert result["invalid_tokens"] == 1
+        assert device_registry.count_active() == 2, "the dead token is deactivated"
+
+    async def test_a_failed_send_is_retried_on_the_next_change(self, monkeypatch):
+        calls = []
+
+        async def failing_then_ok(tokens, **kwargs):
+            calls.append(tokens)
+            if len(calls) == 1:
+                return fcm_client.SendResult(status="FAILED", rejected=len(tokens), detail="blip")
+            return fcm_client.SendResult(status="SENT", accepted=len(tokens))
+
+        monkeypatch.setattr(alert_dispatch.fcm_client, "send_to_tokens", failing_then_ok)
+        device_registry.register(fcm_token=TOKEN_A, location_id=GAURIKUND["id"])
+        first = await self._sim("EXTREME", 87)
+        second = await self._sim("EXTREME", 88)
+        assert first["status"] == "FAILED"
+        assert second["status"] == "SENT", "a network blip must not cost the demo its alert"
+
+    async def test_simulation_alert_is_clearly_labelled(self, sent):
+        device_registry.register(fcm_token=TOKEN_A, location_id=GAURIKUND["id"])
+        await self._sim("EXTREME", 87)
+        title, body = sent[0]["title"], sent[0]["body"]
+        assert "SIMULATION" in title
+        assert "SIH DEMONSTRATION — NOT A REAL EMERGENCY" in body
+        assert "Gaurikund" in body and "Uttarakhand" in body
+        assert "Risk Score: 87" in body
+        assert sent[0]["data"]["kind"] == "SIMULATION"
+
+    async def test_disabled_by_configuration_sends_nothing(self, sent, monkeypatch):
+        monkeypatch.setattr(settings, "simulation_alerts_enabled", False)
+        device_registry.register(fcm_token=TOKEN_A, location_id=GAURIKUND["id"])
+        assert await self._sim("EXTREME", 87) is None
+        assert sent == []
+
+    async def test_the_real_risk_hook_never_pages_during_simulation(self, sent):
+        """Overrides apply to every location, so the generic hook must stay out."""
+        device_registry.register(fcm_token=TOKEN_A, location_id=GAURIKUND["id"])
+        await alert_dispatch.on_risk_assessed(
+            GAURIKUND, risk("EXTREME", 95), "MODERATE", mode=RunMode.SIMULATION
+        )
+        assert sent == []
+        assert alert_dispatch.recent_dispatches() == [], "no ledger noise either"
+
+    async def test_real_data_alerts_still_work(self, sent):
+        device_registry.register(fcm_token=TOKEN_A, location_id=GAURIKUND["id"])
+        await alert_dispatch.on_risk_assessed(
+            GAURIKUND, risk("HIGH", 64), "MODERATE", mode=RunMode.LIVE
+        )
+        assert len(sent) == 1
+        assert sent[0]["data"]["kind"] == "EMERGENCY"
+        assert "SIMULATION" not in sent[0]["title"]
+
+
+class TestSimulationEpisodes:
+    def test_starting_a_simulation_opens_an_episode(self):
+        from app.services import simulation_service
+
+        first = simulation_service.run(overrides={"rainfall_intensity": 50})
+        assert first["active"] and first["episode_id"]
+
+        second = simulation_service.run(overrides={"rainfall_intensity": 80})
+        assert second["episode_id"] == first["episode_id"], "moving a slider keeps the episode"
+
+        simulation_service.reset()
+        third = simulation_service.run(overrides={"rainfall_intensity": 80})
+        assert third["episode_id"] != first["episode_id"], "a reset starts a new episode"
+
+
+class TestSimulatorEndpointAlerts:
+    """End to end through /api/simulation/run with the real risk engine."""
+
+    def _register_gaurikund(self, *tokens):
+        for token in tokens:
+            device_registry.register(fcm_token=token, location_id=GAURIKUND["id"])
+
+    def test_extreme_scenario_pages_only_the_simulated_location(self, client, sent):
+        self._register_gaurikund(TOKEN_A, TOKEN_B)
+        device_registry.register(fcm_token=TOKEN_C, location_id=RISHIKESH["id"])
+
+        body = client.post("/api/simulation/run", json={
+            "scenario_id": "extreme_flash_flood", "location_id": GAURIKUND["id"],
+        }).json()
+
+        level = body["monitoring"]["risk"]["risk_level"]
+        assert level in {"HIGH", "EXTREME"}, "the existing engine drives the level"
+        assert body["demo_alert"]["status"] == "SENT"
+        assert body["demo_alert"]["risk_level"] == level
+        assert len(sent) == 1
+        assert sorted(sent[0]["tokens"]) == sorted([TOKEN_A, TOKEN_B])
+        assert TOKEN_C not in sent[0]["tokens"]
+
+    def test_repeated_runs_do_not_spam(self, client, sent):
+        self._register_gaurikund(TOKEN_A)
+        payload = {"scenario_id": "extreme_flash_flood", "location_id": GAURIKUND["id"]}
+        for _ in range(3):
+            client.post("/api/simulation/run", json=payload)
+        assert len(sent) == 1
+
+    def test_exit_simulation_sends_nothing_and_a_new_run_can_alert_again(self, client, sent):
+        self._register_gaurikund(TOKEN_A)
+        payload = {"scenario_id": "extreme_flash_flood", "location_id": GAURIKUND["id"]}
+        client.post("/api/simulation/run", json=payload)
+        assert len(sent) == 1
+
+        reset = client.post("/api/simulation/reset", params={"location_id": GAURIKUND["id"]})
+        assert reset.status_code == 200
+        assert len(sent) == 1, "exiting simulation must not notify anyone"
+
+        client.post("/api/simulation/run", json=payload)
+        assert len(sent) == 2, "a fresh simulation can demonstrate again"
+
+    def test_firebase_unavailable_never_breaks_the_simulator(self, client):
+        """No monkeypatch: Firebase is genuinely unconfigured in the test env."""
+        self._register_gaurikund(TOKEN_A)
+        response = client.post("/api/simulation/run", json={
+            "scenario_id": "extreme_flash_flood", "location_id": GAURIKUND["id"],
+        })
+        assert response.status_code == 200
+        body = response.json()
+        assert body["active"] is True
+        assert body["monitoring"]["risk"]["mode"] == "SIMULATION"
+        assert body["demo_alert"]["status"] == "NOT_CONFIGURED"
+        assert body["demo_alert"]["accepted"] == 0, "never a fake success"
+
+    def test_existing_test_alert_still_labelled(self, sent):
+        import asyncio
+
+        device_registry.register(fcm_token=TOKEN_A, location_id=GAURIKUND["id"])
+        result = asyncio.run(alert_dispatch.send_test_alert())
+        assert result["status"] == "SENT"
+        assert sent[0]["title"] == "🧪 FLOODSAFE TEST ALERT"
+        assert "notification delivery test" in sent[0]["body"]
+
+
+class TestRegistrationGeography:
+    def test_server_resolves_geography_from_the_location(self, client):
+        """The page used to send a state NAME in the state_id slot."""
+        client.post("/api/notifications/register", json={
+            "fcm_token": TOKEN_A, "location_id": GAURIKUND["id"],
+            "state_id": "Uttarakhand", "state_name": "Uttarakhand",
+        })
+        device = device_registry.list_devices()[0]
+        assert device["state_id"] == "uttarakhand"
+        assert device["location_name"] == "Gaurikund"
+
+    def test_click_path_is_relative_and_restores_the_scope(self):
+        ctx = alert_dispatch.location_context(GAURIKUND["id"])
+        path = alert_dispatch.click_path(ctx)
+        assert path.startswith("/?"), "must resolve against the phone's own origin"
+        assert "state=uttarakhand" in path and "location=loc_gaurikund" in path
+
+
+class TestMessageAndAssets:
+    """Sound, vibration and icon configuration the phones depend on."""
+
+    FRONTEND = settings.project_root / "frontend"
+
+    def test_messages_are_data_only(self):
+        message = fcm_client.build_message(
+            TOKEN_A, title="t", body="b", data={"kind": "SIMULATION"},
+            severity="EXTREME", click_url="/",
+        )["message"]
+        assert "notification" not in message, "a notification block causes duplicates on Android"
+        assert all(isinstance(v, str) for v in message["data"].values())
+        assert message["webpush"]["headers"]["Urgency"] == "high"
+
+    def test_emergency_tone_exists_and_is_two_to_four_seconds(self):
+        import wave
+
+        for name, low, high in (("floodsafe-extreme-alert.wav", 2.0, 4.0),
+                                ("floodsafe-alert.wav", 0.5, 3.0)):
+            path = self.FRONTEND / "public" / "sounds" / name
+            assert path.exists(), f"{name} missing - run scripts/make_alert_sound.py"
+            with wave.open(str(path)) as wav:
+                seconds = wav.getnframes() / wav.getframerate()
+                assert low <= seconds <= high, f"{name} is {seconds:.2f}s"
+                assert wav.getnchannels() == 1
+            assert path.stat().st_size < 300_000, "keep alert audio small"
+
+    def test_extreme_vibration_pattern_matches_between_worker_and_page(self):
+        pattern = "EXTREME: [500, 200, 500, 200, 1000]"
+        worker = (self.FRONTEND / "public" / "firebase-messaging-sw.js").read_text(encoding="utf-8")
+        page = (self.FRONTEND / "src" / "services" / "notifications.ts").read_text(encoding="utf-8")
+        assert pattern in worker and pattern in page
+
+    def test_notification_icons_exist_and_the_badge_has_transparency(self):
+        icon = self.FRONTEND / "public" / "icons" / "floodsafe-192.png"
+        badge = self.FRONTEND / "public" / "icons" / "floodsafe-badge-96.png"
+        for path in (icon, badge):
+            assert path.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n", f"{path.name} is not a PNG"
+        # IHDR colour type 6 = RGBA; Android renders the badge from alpha only.
+        assert badge.read_bytes()[25] == 6
+        worker = (self.FRONTEND / "public" / "firebase-messaging-sw.js").read_text(encoding="utf-8")
+        assert "/icons/floodsafe-192.png" in worker and "favicon.svg" not in worker
+
+    def test_foreground_alerts_use_the_service_worker_on_android(self):
+        """Android Chrome rejects `new Notification()` from a page."""
+        import re
+
+        page = (self.FRONTEND / "src" / "services" / "notifications.ts").read_text(encoding="utf-8")
+        # Judge the code, not the comments that explain why the constructor is avoided.
+        code = re.sub(r"/\*.*?\*/", "", page, flags=re.S)
+        code = re.sub(r"//[^\n]*", "", code)
+        assert "registration.showNotification" in code
+        assert "new Notification(" not in code
+        assert "playEmergencySound" in code

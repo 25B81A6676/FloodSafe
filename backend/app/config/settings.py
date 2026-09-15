@@ -108,11 +108,16 @@ class Settings(BaseSettings):
     alert_cooldown_minutes: int = 30
     # Which registered devices an alert reaches: location | district | state.
     alert_targeting_scope: str = "location"
-    # SAFETY DEFAULT. While true, a risk transition never sends a real push -
-    # it is evaluated and logged only. The simulator can therefore drive a
-    # location to EXTREME on stage without paging anyone. Test alerts, which are
-    # explicitly labelled as tests, are still sent.
+    # SAFETY DEFAULT. While true, a transition in REAL measured risk never sends
+    # a push - it is evaluated and logged only. It does not affect simulator
+    # demo alerts (simulation_alerts_enabled) or test alerts, both of which are
+    # labelled as demonstrations in the notification itself.
     flood_alert_test_mode: bool = True
+    # Simulator demo alerts. When the simulated location enters HIGH or EXTREME
+    # the registered phones for THAT location receive a real FCM push, clearly
+    # labelled as an SIH demonstration. Independent of flood_alert_test_mode,
+    # which only governs alerts from real measured data.
+    simulation_alerts_enabled: bool = True
     # Deep link used in the notification body and click action.
     public_dashboard_url: str = "http://localhost:5173"
     # Bound on how long a dispatch may hold up a risk response.

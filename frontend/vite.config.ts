@@ -6,6 +6,15 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: false,
+    // Bind IPv4 explicitly. On Windows `localhost` resolves to IPv6 ::1 first, so
+    // Vite listened on [::1] only and a tunnel forwarding to 127.0.0.1 got
+    // "connection refused" (Cloudflare error 530). Browsers still reach
+    // http://localhost:5173 because they fall back to IPv4.
+    host: '127.0.0.1',
+    // Phones need HTTPS for web push, which in development means reaching this
+    // server through a tunnel. Vite rejects unknown Host headers by default, so
+    // the tunnel's hostname has to be allowed or the phone gets "Blocked request".
+    allowedHosts: ['.trycloudflare.com', '.ngrok-free.app'],
     proxy: {
       // The browser never talks to an external API directly: everything goes
       // through the FastAPI backend.

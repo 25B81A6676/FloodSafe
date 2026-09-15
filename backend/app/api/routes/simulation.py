@@ -6,7 +6,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 
 from app.schemas.simulation import SimulationRunRequest
-from app.services import monitoring_service, region_service, simulation_service
+from app.services import alert_dispatch, monitoring_service, region_service, simulation_service
 from app.services.region_service import LocationNotFound
 
 router = APIRouter(tags=["simulation"])
@@ -81,6 +81,23 @@ async def run(request: SimulationRunRequest) -> dict[str, Any]:
                 status_code=404, detail=f"Unknown location '{request.location_id}'"
             )
         payload["monitoring"] = await monitoring_service.get_monitoring(request.location_id)
+
+        # Demonstration push for the ONE location being simulated. Overrides
+        # apply everywhere, so this must not hang off the region-wide risk hook.
+        # A messaging problem is reported in the payload and never fails the
+        # simulator itself.
+        payload["demo_alert"] = None
+        if result.get("active"):
+            try:
+                context = alert_dispatch.location_context(request.location_id)
+                if context is not None:
+                    payload["demo_alert"] = await alert_dispatch.dispatch_simulation(
+                        context,
+                        payload["monitoring"]["risk"],
+                        episode_id=result.get("episode_id"),
+                    )
+            except Exception as exc:  # noqa: BLE001
+                payload["demo_alert"] = {"status": "FAILED", "detail": type(exc).__name__}
 
     return payload
 

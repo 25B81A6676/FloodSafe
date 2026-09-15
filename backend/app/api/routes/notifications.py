@@ -42,7 +42,22 @@ class DeviceRegistration(BaseModel):
 @router.post("/notifications/register")
 async def register_device(body: DeviceRegistration) -> dict[str, Any]:
     """Register or refresh one phone. Re-registering updates, never duplicates."""
-    device = device_registry.register(**body.model_dump())
+    fields = body.model_dump()
+    # The server's own registry is the authority on where a location is. The page
+    # sends what it has on screen, which for a curated pilot region was a state
+    # NAME in the state_id slot; resolving from location_id keeps district- and
+    # state-scope targeting correct whatever the client sends.
+    if body.location_id:
+        context = alert_dispatch.location_context(body.location_id)
+        if context is not None:
+            fields["location_name"] = context.get("name") or fields["location_name"]
+            fields["district"] = context.get("district") or fields["district"]
+            fields["state_id"] = context.get("state_id") or fields["state_id"]
+            fields["state_name"] = context.get("state_name") or fields["state_name"]
+            if fields["latitude"] is None:
+                fields["latitude"] = context.get("latitude")
+                fields["longitude"] = context.get("longitude")
+    device = device_registry.register(**fields)
     return {
         "registered": True,
         "device": device,

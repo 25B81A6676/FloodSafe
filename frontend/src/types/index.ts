@@ -708,6 +708,7 @@ export interface AlertDispatch {
   status: string
   detail: string | null
   sent_at: string
+  episode_id?: string | null
 }
 
 export interface NotificationStatus {
@@ -716,6 +717,7 @@ export interface NotificationStatus {
   service_account: string | null
   credential_source: string | null
   test_mode: boolean
+  simulation_alerts_enabled?: boolean
   cooldown_minutes: number
   targeting_scope: string
   trigger_levels: string[]
@@ -724,4 +726,22 @@ export interface NotificationStatus {
   devices: AlertDevice[]
   recent_dispatches: AlertDispatch[]
   note: string
+}
+
+/** Outcome of a simulator demonstration push, returned by /simulation/run.
+ *  `accepted` is Firebase accepting the request, never proof of delivery. */
+export interface DemoAlert {
+  id?: number
+  kind?: 'SIMULATION'
+  episode_id?: string
+  location_id?: string
+  location_name?: string
+  risk_level?: string
+  risk_score?: number | null
+  targeted?: number
+  accepted?: number
+  rejected?: number
+  invalid_tokens?: number
+  status: string
+  detail?: string | null
 }

@@ -429,6 +429,12 @@ export function Dashboard({
             onRunScenario={runScenario}
             onOverride={applyOverrides}
             onExit={exitSimulation}
+            status={
+              snap && snap.risk.mode === 'SIMULATION'
+                ? { locationName: snap.location.name, level: snap.risk.risk_level, score: snap.risk.risk_score }
+                : null
+            }
+            demoAlert={simulation.lastDemoAlert}
           />
         ) : (
           <Skeleton height={320} />

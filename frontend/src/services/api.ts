@@ -8,6 +8,7 @@
 import type {
   AlertDevice,
   DashboardSummary,
+  DemoAlert,
   District,
   GeographyInfo,
   IndiaState,
@@ -151,6 +152,9 @@ export const api = {
       rejected: string[]
       readouts: SimulationReadouts
       monitoring?: MonitoringSnapshot
+      episode_id?: string | null
+      /** Present when a location was simulated; null if no alert was due. */
+      demo_alert?: DemoAlert | null
     }>('/simulation/run', { method: 'POST', body: JSON.stringify(body) }),
 
   /* ---- flood-alert notifications ---- */

@@ -112,6 +112,7 @@ def config_status() -> dict[str, Any]:
             else None
         ),
         "test_mode": settings.flood_alert_test_mode,
+        "simulation_alerts_enabled": settings.simulation_alerts_enabled,
         "cooldown_minutes": settings.alert_cooldown_minutes,
         "targeting_scope": settings.alert_targeting_scope,
         "trigger_levels": sorted(settings.alert_trigger_level_set),
@@ -165,43 +166,37 @@ def build_message(
     severity: str,
     click_url: str,
 ) -> dict[str, Any]:
-    """One FCM HTTP v1 message.
+    """One FCM HTTP v1 message, sent DATA-ONLY.
 
-    Sound and vibration are requested through the platform-specific blocks. The
-    web push channel has no custom-sound field at all, so the browser plays its
-    own notification sound and the page adds the FloodSafe tone itself when it
-    is open - see the frontend notification service.
+    Every registered device is a web browser, and a data-only message is the one
+    shape where FloodSafe controls the result. With a ``notification`` block the
+    Firebase service worker shows its own copy AND calls our background handler,
+    which on Android meant two notifications and no control over the icon,
+    vibration pattern or persistence. Data-only, the service worker renders
+    exactly one notification from these fields - and the open page renders the
+    same fields when it is in the foreground.
+
+    What web push cannot do is set a custom sound for a backgrounded page: the
+    Web Notifications API has no sound option, and on Android 8+ sound and
+    vibration are governed by Chrome's per-site notification channel, which the
+    phone's owner controls. That is documented rather than faked.
     """
+    kind = data.get("kind", "EMERGENCY")
+    # Demonstration pushes expire quickly: a phone that was offline should not
+    # surface a stale "EXTREME SIMULATION" alert an hour after the demo ended.
+    ttl = "300" if kind in {"SIMULATION", "TEST"} else "3600"
     return {
         "message": {
             "token": token,
-            "notification": {"title": title, "body": body},
-            "data": {**data, "click_url": click_url},
-            "android": {
-                "priority": "high",
-                "notification": {
-                    "sound": "default",
-                    "notification_priority": "PRIORITY_MAX" if severity == "EXTREME" else "PRIORITY_HIGH",
-                    "default_vibrate_timings": True,
-                },
-            },
-            "apns": {
-                "headers": {"apns-priority": "10"},
-                "payload": {"aps": {"sound": "default"}},
+            "data": {
+                **data,
+                "title": title,
+                "body": body,
+                "severity": severity,
+                "click_url": click_url,
             },
             "webpush": {
-                "headers": {"Urgency": "high"},
-                "notification": {
-                    "title": title,
-                    "body": body,
-                    "icon": "/favicon.svg",
-                    "badge": "/favicon.svg",
-                    "tag": data.get("tag", "floodsafe-alert"),
-                    "renotify": True,
-                    "requireInteraction": severity == "EXTREME",
-                    "vibrate": [300, 150, 300, 150, 600] if severity == "EXTREME" else [250, 150, 250],
-                },
-                "fcm_options": {"link": click_url},
+                "headers": {"Urgency": "high", "TTL": ttl},
             },
         }
     }

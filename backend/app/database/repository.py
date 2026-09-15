@@ -150,32 +150,38 @@ DEFAULT_SESSION = "default"
 
 def save_simulation_state(
     overrides: dict[str, Any], *, scenario_id: str | None, active: bool,
-    session_id: str = DEFAULT_SESSION,
+    session_id: str = DEFAULT_SESSION, episode_id: str | None = None,
 ) -> None:
     with write_conn() as conn:
         conn.execute(
-            """INSERT INTO simulation_state (session_id, scenario_id, overrides, active, updated_at)
-               VALUES (?,?,?,?,?)
+            """INSERT INTO simulation_state
+                 (session_id, scenario_id, overrides, active, updated_at, episode_id)
+               VALUES (?,?,?,?,?,?)
                ON CONFLICT(session_id) DO UPDATE SET
                  scenario_id=excluded.scenario_id, overrides=excluded.overrides,
-                 active=excluded.active, updated_at=excluded.updated_at""",
-            (session_id, scenario_id, jdump(overrides), 1 if active else 0, iso(utcnow())),
+                 active=excluded.active, updated_at=excluded.updated_at,
+                 episode_id=excluded.episode_id""",
+            (session_id, scenario_id, jdump(overrides), 1 if active else 0,
+             iso(utcnow()), episode_id),
         )
 
 
 def load_simulation_state(session_id: str = DEFAULT_SESSION) -> dict[str, Any]:
     with get_conn() as conn:
         row = conn.execute(
-            "SELECT scenario_id, overrides, active, updated_at FROM simulation_state WHERE session_id=?",
+            """SELECT scenario_id, overrides, active, updated_at, episode_id
+               FROM simulation_state WHERE session_id=?""",
             (session_id,),
         ).fetchone()
     if not row:
-        return {"active": False, "scenario_id": None, "overrides": {}, "updated_at": None}
+        return {"active": False, "scenario_id": None, "overrides": {},
+                "updated_at": None, "episode_id": None}
     return {
         "active": bool(row["active"]),
         "scenario_id": row["scenario_id"],
         "overrides": jload(row["overrides"]) or {},
         "updated_at": row["updated_at"],
+        "episode_id": row["episode_id"],
     }
 
 

@@ -11,6 +11,7 @@ visually distinct from measurements everywhere they surface.
 from __future__ import annotations
 
 import json
+import uuid
 from functools import lru_cache
 from typing import Any
 
@@ -206,11 +207,21 @@ def run(
         base.update(manual)
 
     active = bool(base)
-    repository.save_simulation_state(base, scenario_id=scenario_id, active=active)
+    # An episode begins when simulation turns on and ends at Exit Simulation
+    # (which deletes the state row). Moving a slider while already simulating
+    # keeps the same episode, which is what stops demo alerts repeating.
+    previous = repository.load_simulation_state()
+    episode_id = (
+        (previous.get("episode_id") if previous.get("active") else None) or uuid.uuid4().hex[:12]
+    ) if active else None
+    repository.save_simulation_state(
+        base, scenario_id=scenario_id, active=active, episode_id=episode_id
+    )
     log.info("%s activated scenario=%s overrides=%s", EV_SIM, scenario_id, sorted(base))
 
     return {
         "active": active,
+        "episode_id": episode_id,
         "scenario_id": scenario_id,
         "scenario": scenario,
         "overrides": base,

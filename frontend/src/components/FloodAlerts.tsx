@@ -2,10 +2,11 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   type AlertPreferences,
   enableAlerts,
-  listenForForegroundAlerts,
   loadPreferences,
+  permissionHelp,
   permissionState,
   playAlertSound,
+  playEmergencySound,
   pushSupported,
   savePreferences,
   secureContextOk,
@@ -31,23 +32,28 @@ export function FloodAlerts({
   stateId?: string | null
 }) {
   const [prefs, setPrefs] = useState<AlertPreferences>(() => loadPreferences())
+  /* Read live, not once at mount. The phone's owner changes this in Chrome or
+     Android settings and then comes back to the tab; a value captured at load
+     showed "Re-register" while notifications were in fact blocked. */
   const [permission, setPermission] = useState(() => permissionState())
+  useEffect(() => {
+    const sync = () => setPermission(permissionState())
+    window.addEventListener('focus', sync)
+    document.addEventListener('visibilitychange', sync)
+    return () => {
+      window.removeEventListener('focus', sync)
+      document.removeEventListener('visibilitychange', sync)
+    }
+  }, [])
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<{ kind: 'ok' | 'warn'; text: string } | null>(null)
-  const [lastAlert, setLastAlert] = useState<string | null>(null)
 
   const supported = pushSupported()
   const secure = secureContextOk()
 
-  useEffect(() => {
-    let stop: (() => void) | undefined
-    void listenForForegroundAlerts(({ title, severity }) => {
-      setLastAlert(`${severity} · ${title}`)
-    }).then((fn) => {
-      stop = fn
-    })
-    return () => stop?.()
-  }, [])
+  /* Foreground alerts are handled app-wide in App (useForegroundAlerts), not
+     here: this card only exists on the Dashboard, and an alert that arrives
+     while a phone shows another page would otherwise be lost. */
 
   const update = useCallback((next: Partial<AlertPreferences>) => {
     setPrefs((current) => {
@@ -59,6 +65,8 @@ export function FloodAlerts({
 
   const onEnable = useCallback(async () => {
     if (!location) return
+    // Nothing may be awaited before enableAlerts asks for permission: the
+    // prompt is only allowed while this tap is still active.
     setBusy(true)
     setMessage(null)
     try {
@@ -72,6 +80,8 @@ export function FloodAlerts({
         longitude: location.longitude,
       })
       setPermission(permissionState())
+      // Tell the app-wide foreground listener it can attach now.
+      if (result.ok) window.dispatchEvent(new Event('floodsafe:alerts-enabled'))
       setMessage(
         result.ok
           ? { kind: 'ok', text: `Device registered for ${location.name}${result.deviceLabel ? ` as ${result.deviceLabel}` : ''}.` }
@@ -84,16 +94,27 @@ export function FloodAlerts({
     }
   }, [location, stateId, stateName])
 
-  const onTestSound = useCallback(async () => {
-    const played = await playAlertSound()
-    if (prefs.vibration) vibrate('HIGH')
-    if (!played) {
-      setMessage({
-        kind: 'warn',
-        text: 'The browser blocked audio. Interact with the page once, then try again.',
-      })
-    }
-  }, [prefs.vibration])
+  const onTestSound = useCallback(
+    async (severity: 'HIGH' | 'EXTREME') => {
+      const played = await (severity === 'EXTREME' ? playEmergencySound() : playAlertSound())
+      const buzzed = prefs.vibration ? vibrate(severity) : false
+      setMessage(
+        played
+          ? {
+              kind: 'ok',
+              text:
+                severity === 'EXTREME'
+                  ? `Emergency tone played${buzzed ? ' with vibration' : prefs.vibration ? ' (this device did not vibrate)' : ''}. Raise media volume if it was quiet.`
+                  : 'Alert tone played.',
+            }
+          : {
+              kind: 'warn',
+              text: 'The browser blocked audio. Tap the page once, then try again.',
+            },
+      )
+    },
+    [prefs.vibration],
+  )
 
   return (
     <Card title="Flood alerts" icon="🔔">
@@ -139,17 +160,23 @@ export function FloodAlerts({
           <div className="row" style={{ gap: 'var(--space-xs)', flexWrap: 'wrap' }}>
             <button className="btn btn-sm" onClick={() => void onEnable()} disabled={busy || !location}>
               {busy ? <Spinner /> : <span aria-hidden>🔔</span>}
-              {permission === 'granted' ? 'Re-register this device' : 'Enable flood alerts'}
+              {permission === 'granted' ? 'Register this device here' : 'Enable flood alerts'}
             </button>
-            <button className="btn btn-sm" onClick={() => void onTestSound()}>
-              <span aria-hidden>🔊</span> Test sound
+            <button className="btn btn-sm" onClick={() => void onTestSound('HIGH')}>
+              <span aria-hidden>🔈</span> Test sound
+            </button>
+            <button
+              className="btn btn-sm btn-danger"
+              onClick={() => void onTestSound('EXTREME')}
+              title="Play FloodSafe's original EXTREME emergency tone on this device"
+            >
+              <span aria-hidden>🔊</span> Test emergency sound
             </button>
           </div>
 
-          {permission === 'denied' && (
-            <p className="small muted" style={{ marginTop: 'var(--space-2xs)' }}>
-              Notification permission is blocked for this site. It has to be re-allowed in the
-              browser's own site settings — a page cannot re-ask once it is denied.
+          {permission === 'denied' && !message && (
+            <p className="small" style={{ marginTop: 'var(--space-2xs)', color: 'var(--status-moderate)' }}>
+              ⚠ {permissionHelp('denied')}
             </p>
           )}
 
@@ -167,11 +194,6 @@ export function FloodAlerts({
             </p>
           )}
 
-          {lastAlert && (
-            <p className="small muted" style={{ marginTop: 'var(--space-2xs)' }}>
-              Last alert received on this device: {lastAlert}
-            </p>
-          )}
 
           <p className="small muted" style={{ marginTop: 'var(--space-xs)' }}>
             Alerts are sent only to devices registered at the affected location, and only when

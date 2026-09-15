@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ScopeBar } from './components/ScopeBar'
+import { type ForegroundAlert, listenForForegroundAlerts, primeAudio } from './services/notifications'
 import { FreshnessBadge, Spinner, timeAgo } from './components/ui'
 import { useAsync, useStored } from './hooks/useApi'
 import { useSimulation } from './hooks/useSimulation'
@@ -13,6 +14,38 @@ type Page = 'dashboard' | 'authority' | 'methodology'
 
 export default function App() {
   const [page, setPage] = useStored<Page>('floodsafe.page', 'dashboard')
+
+  /* Flood alerts that arrive while FloodSafe is open. Installed once for the
+     whole app: when a FloodSafe tab is visible Firebase hands the push to the
+     page instead of showing a notification, so a listener that lived on one
+     page would let alerts vanish whenever a phone showed any other page. */
+  const [foregroundAlert, setForegroundAlert] = useState<ForegroundAlert | null>(null)
+  useEffect(() => {
+    let stop: (() => void) | undefined
+    let generation = 0
+    const install = () => {
+      const mine = ++generation
+      stop?.()
+      stop = undefined
+      void listenForForegroundAlerts(setForegroundAlert).then((unsubscribe) => {
+        if (mine === generation) stop = unsubscribe
+        else unsubscribe()
+      })
+    }
+    install()
+    // Permission is usually granted mid-session, from the Flood alerts card.
+    window.addEventListener('floodsafe:alerts-enabled', install)
+    // Prepare the alert tones on the first genuine interaction with the page.
+    window.addEventListener('pointerdown', primeAudio, { once: true })
+    window.addEventListener('keydown', primeAudio, { once: true })
+    return () => {
+      generation++
+      stop?.()
+      window.removeEventListener('floodsafe:alerts-enabled', install)
+      window.removeEventListener('pointerdown', primeAudio)
+      window.removeEventListener('keydown', primeAudio)
+    }
+  }, [])
   const [stateId, setStateId] = useStored<string>('floodsafe.state', '')
   const [districtId, setDistrictId] = useStored<string>('floodsafe.district', '')
   const [storedLocationId, setStoredLocationId] = useStored<string>('floodsafe.location', '')
@@ -304,6 +337,24 @@ export default function App() {
           />
         )}
       </header>
+
+      {foregroundAlert && (
+        <div
+          className={`alert-banner alert-banner-${foregroundAlert.severity.toLowerCase()}`}
+          role="alert"
+        >
+          <span className="alert-banner-icon" aria-hidden>
+            {foregroundAlert.severity === 'EXTREME' ? '🚨' : foregroundAlert.kind === 'TEST' ? '🧪' : '⚠️'}
+          </span>
+          <div className="alert-banner-text">
+            <strong>{foregroundAlert.title}</strong>
+            <span>{foregroundAlert.body}</span>
+          </div>
+          <button className="btn btn-sm" onClick={() => setForegroundAlert(null)}>
+            Dismiss
+          </button>
+        </div>
+      )}
 
       <main className="main">
         {!regionReady && !locationId && !locations.error && (

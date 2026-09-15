@@ -1235,3 +1235,88 @@ select:disabled {
   font-family: var(--font-mono);
 }
 .dispatch-list strong { color: var(--color-ink); }
+
+/* ---------------------------------------------------------------------------
+ * Simulator demo alerts, in-page alert banner, device summary
+ * ------------------------------------------------------------------------ */
+.sim-status-grid {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-3xs) var(--space-sm);
+  margin-top: var(--space-2xs);
+  font-size: var(--text-sm);
+}
+.sim-status-grid span { color: var(--color-muted); }
+
+.demo-alert {
+  border: var(--rule-width) solid var(--color-rule-strong);
+  background: var(--color-paper-3);
+  color: var(--color-ink);
+  font-size: var(--text-sm);
+}
+.demo-alert-sent {
+  border-color: color-mix(in oklab, var(--status-extreme) 60%, transparent);
+  background: color-mix(in oklab, var(--status-extreme) 16%, var(--color-paper-3));
+}
+.demo-alert-warn {
+  border-color: color-mix(in oklab, var(--status-moderate) 60%, transparent);
+}
+
+/* Shown when an alert arrives while FloodSafe is open. Sticky under the header
+   so it stays visible however far the page is scrolled. */
+.alert-banner {
+  position: sticky;
+  top: var(--banner-height);
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: var(--rule-width) solid var(--color-rule-strong);
+  background: var(--color-paper-4);
+  color: var(--color-ink);
+}
+.alert-banner-extreme {
+  background: color-mix(in oklab, var(--status-extreme) 30%, var(--color-paper-2));
+  border-bottom-color: var(--status-extreme);
+}
+.alert-banner-high {
+  background: color-mix(in oklab, var(--status-high) 26%, var(--color-paper-2));
+  border-bottom-color: var(--status-high);
+}
+.alert-banner-icon { font-size: var(--text-lg); line-height: 1; }
+.alert-banner-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* The body carries line breaks (location, score, demonstration label). */
+.alert-banner-text span { white-space: pre-line; font-size: var(--text-sm); }
+
+.device-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs) var(--space-sm);
+  margin-bottom: var(--space-xs);
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+.device-summary strong { color: var(--color-ink); }
+.device-summary-total { flex-basis: 100%; }
+
+.last-alert {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3xs);
+  padding: var(--space-xs) var(--space-sm);
+  margin-bottom: var(--space-xs);
+  border: var(--rule-width) solid var(--color-rule-strong);
+  border-radius: var(--radius);
+  background: var(--color-paper-3);
+  color: var(--color-ink-2);
+  font-size: var(--text-sm);
+}
+.last-alert-extreme { border-color: var(--status-extreme); }
+.last-alert-high { border-color: var(--status-high); }
