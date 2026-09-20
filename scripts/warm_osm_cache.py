@@ -60,10 +60,26 @@ async def warm(state_ids: list[str] | None, infrastructure: bool) -> int:
             cached = sum(1 for _, lat, lon in points if data_cache.get(
                 data_cache.make_key("osm-river", lat=lat, lon=lon,
                                     r=settings.osm_search_radius_m)) is not None)
-            note = f"{cached}/{len(points)} points cached"
+            note = f"{cached}/{len(points)} centres"
             if cached < len(points):
                 failures += 1
-                note += "  INCOMPLETE"
+                note += " INCOMPLETE"
+
+            # The risk grid measures from its own cell centres, at its own
+            # radius, so those are separate cache entries and need warming too.
+            cells = region_service.get_grid_cells(region["id"])
+            gpoints = [(c.id, c.center_lat, c.center_lon) for c in cells]
+            if gpoints:
+                await osm_service.get_river_context_batch(
+                    gpoints, radius_m=settings.osm_grid_search_radius_m
+                )
+                gcached = sum(1 for _, lat, lon in gpoints if data_cache.get(
+                    data_cache.make_key("osm-river", lat=lat, lon=lon,
+                                        r=settings.osm_grid_search_radius_m)) is not None)
+                note += f", {gcached}/{len(gpoints)} grid cells"
+                if gcached < len(gpoints):
+                    failures += 1
+                    note += " INCOMPLETE"
             if infrastructure:
                 infra = await osm_service.get_region_infrastructure(region)
                 note += f", {len(infra.get('features', []))} features"

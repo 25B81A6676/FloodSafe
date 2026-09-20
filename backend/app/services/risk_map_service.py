@@ -48,27 +48,27 @@ async def build_risk_map(
     terrain_t = elevation_service.get_terrain_batch(tpoints, force_refresh=force_refresh)
     hydro_t = hydrology_service.get_hydrology_batch(points, compact=True, force_refresh=force_refresh)
     ante_t = historical_service.get_antecedent_index_batch(points)
-    water_t = osm_service.get_region_waterways(region)
+    # Per-cell river proximity, not a state-wide download. Fetching every
+    # waterway in the state to measure the distance from 42 points is 39 MB for
+    # Kerala and times the request out; the per-point form is small, chunked,
+    # cached individually and carried in the bundled snapshot.
+    river_t = osm_service.get_river_context_batch(points, radius_m=GRID_SEARCH_RADIUS_M)
 
-    weather, terrain, hydro, ante, waterways = await asyncio.gather(
-        weather_t, terrain_t, hydro_t, ante_t, water_t, return_exceptions=True
+    weather, terrain, hydro, ante, river_ctx = await asyncio.gather(
+        weather_t, terrain_t, hydro_t, ante_t, river_t, return_exceptions=True
     )
 
     def unwrap(v: Any, label: str) -> Any:
         if isinstance(v, BaseException):
             log.error("risk map source '%s' failed: %s", label, v)
-            return {} if label != "waterways" else {"rivers": [], "streams": [], "freshness": "DEMO"}
+            return {}
         return v
 
     weather = unwrap(weather, "weather")
     terrain = unwrap(terrain, "terrain")
     hydro = unwrap(hydro, "hydrology")
     ante = unwrap(ante, "antecedent")
-    waterways = unwrap(waterways, "waterways")
-
-    river_ctx = osm_service.river_context_from_dataset(
-        points, waterways, radius_m=GRID_SEARCH_RADIUS_M
-    )
+    river_ctx = unwrap(river_ctx, "river")
 
     sim_state = simulation_service.current_state()
     mode = RunMode.SIMULATION if sim_state.get("active") else RunMode.LIVE

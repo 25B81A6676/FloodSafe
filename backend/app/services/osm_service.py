@@ -16,6 +16,7 @@ Data (c) OpenStreetMap contributors, ODbL.
 """
 from __future__ import annotations
 
+import asyncio
 import math
 from typing import Any, Iterable, Sequence
 
@@ -331,47 +332,97 @@ def _river_unavailable(pid: str, reason: str, radius_m: float) -> dict[str, Any]
 # Region-wide GIS layers for the map
 # --------------------------------------------------------------------------
 async def get_region_waterways(region: dict[str, Any]) -> dict[str, Any]:
+    """Rivers and streams across a region, for the map layer.
+
+    Rivers and streams are fetched as two independent requests rather than one
+    union. A state-wide union is the single largest thing this application
+    asks of Overpass - 39 MB for Kerala - and at that size it exceeds both the
+    Overpass budget and the host's request ceiling, so the whole layer came
+    back empty. Split, each half is smaller, each is cached on its own, and a
+    failure costs only that half: rivers still draw when streams time out, and
+    the response says which half is missing rather than implying the region has
+    no streams.
+    """
     bbox = region.get("gis_query_bbox") or region["bbox"]
-    s, w, n, e = bbox["min_lat"], bbox["min_lon"], bbox["max_lat"], bbox["max_lon"]
-    query = (
-        f"[out:json][timeout:{int(settings.http_overpass_timeout_seconds)}];"
-        f'(way["waterway"="river"]({s},{w},{n},{e});'
-        f'way["waterway"="stream"]({s},{w},{n},{e}););'
-        "out geom;"
+    s_, w_, n_, e_ = bbox["min_lat"], bbox["min_lon"], bbox["max_lat"], bbox["max_lon"]
+
+    # The decimated form is what every consumer actually wants - name, type and
+    # a simplified polyline - and is small enough to bundle, which the raw
+    # Overpass response is not.
+    derived_key = data_cache.make_key(
+        "osm-waterways-set", region=region["id"], s=s_, w=w_, n=n_, e=e_
     )
-    key = data_cache.make_key("osm-waterways", region=region["id"], s=s, w=w, n=n, e=e)
+    derived = data_cache.get(derived_key)
+    if derived is not None:
+        return _waterways_result(
+            region, bbox, derived.payload["rivers"], derived.payload["streams"],
+            "CACHED", derived.age_minutes, derived.payload.get("notes") or [],
+        )
 
-    try:
+    async def fetch(kind: str) -> tuple[list[dict[str, Any]], str, float]:
+        query = (
+            f"[out:json][timeout:{int(settings.http_overpass_timeout_seconds)}];"
+            f'way["waterway"="{kind}"]({s_},{w_},{n_},{e_});'
+            "out geom;"
+        )
+        key = data_cache.make_key(
+            "osm-waterways", region=region["id"], kind=kind, s=s_, w=w_, n=n_, e=e_
+        )
         raw, freshness, age = await _overpass(query, cache_key=key, ttl=settings.cache_ttl_osm)
-    except UpstreamError as exc:
-        return {
-            "region_id": region["id"], "freshness": "DEMO", "age_minutes": 0.0,
-            "source": SOURCE_LABEL, "source_key": SOURCE_KEY,
-            "attribution": SOURCE_ATTRIBUTION, "bbox": bbox,
-            "rivers": [], "streams": [], "count": 0,
-            "notes": [f"OpenStreetMap waterways unavailable: {str(exc)[:160]}"],
-            "observed_at": iso(utcnow()),
-        }
+        items: list[dict[str, Any]] = []
+        for el in raw.get("elements", []):
+            if el.get("type") != "way":
+                continue
+            coords = _decimate(_geometry_of(el))
+            if len(coords) < 2:
+                continue
+            tags = el.get("tags", {})
+            items.append({
+                "id": el.get("id"),
+                "name": tags.get("name"),
+                "waterway": tags.get("waterway"),
+                "coordinates": [[round(a, 5), round(b, 5)] for a, b in coords],
+            })
+        return items, freshness, age
 
-    rivers: list[dict[str, Any]] = []
-    streams: list[dict[str, Any]] = []
-    for el in raw.get("elements", []):
-        if el.get("type") != "way":
-            continue
-        coords = _decimate(_geometry_of(el))
-        if len(coords) < 2:
-            continue
-        tags = el.get("tags", {})
-        item = {
-            "id": el.get("id"),
-            "name": tags.get("name"),
-            "waterway": tags.get("waterway"),
-            "coordinates": [[round(a, 5), round(b, 5)] for a, b in coords],
-        }
-        (rivers if tags.get("waterway") == "river" else streams).append(item)
+    river_r, stream_r = await asyncio.gather(
+        fetch("river"), fetch("stream"), return_exceptions=True
+    )
 
+    notes: list[str] = []
+    freshness, age = "DEMO", 0.0
+
+    def unwrap(result: Any, kind: str) -> list[dict[str, Any]]:
+        nonlocal freshness, age
+        if isinstance(result, BaseException):
+            notes.append(f"OpenStreetMap {kind}s unavailable: {str(result)[:140]}")
+            log.warning("%s %s geometry unavailable: %s", EV_DEMO, kind, str(result)[:160])
+            return []
+        items, item_freshness, item_age = result
+        # The whole layer is only as fresh as its least fresh half.
+        if freshness == "DEMO" or item_freshness == "DEMO":
+            freshness = item_freshness if freshness == "DEMO" else freshness
+        age = max(age, item_age)
+        return items
+
+    rivers = unwrap(river_r, "river")
+    streams = unwrap(stream_r, "stream")
+
+    if rivers or streams:
+        data_cache.put(
+            derived_key, {"rivers": rivers, "streams": streams, "notes": notes},
+            source="overpass", ttl_seconds=settings.cache_ttl_osm,
+        )
     log.info("OSM waterways for %s: %d rivers, %d streams (%s)",
              region["id"], len(rivers), len(streams), freshness)
+    return _waterways_result(region, bbox, rivers, streams, freshness, age, notes)
+
+
+def _waterways_result(
+    region: dict[str, Any], bbox: dict[str, Any],
+    rivers: list[dict[str, Any]], streams: list[dict[str, Any]],
+    freshness: str, age: float, notes: list[str] | None = None,
+) -> dict[str, Any]:
     return {
         "region_id": region["id"], "freshness": freshness, "age_minutes": round(age, 1),
         "source": SOURCE_LABEL, "source_key": SOURCE_KEY,
@@ -379,7 +430,7 @@ async def get_region_waterways(region: dict[str, Any]) -> dict[str, Any]:
         "rivers": rivers, "streams": streams,
         "count": len(rivers) + len(streams),
         "named_rivers": sorted({r["name"] for r in rivers if r.get("name")}),
-        "notes": [], "observed_at": iso(utcnow()),
+        "notes": notes or [], "observed_at": iso(utcnow()),
     }
 
 
