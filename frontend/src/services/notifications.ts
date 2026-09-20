@@ -275,7 +275,7 @@ async function showSystemNotification(data: Record<string, string>): Promise<voi
     renotify: true,
     requireInteraction: severity === 'EXTREME' || data.kind === 'SIMULATION',
     silent: false,
-    vibrate: ALERT_VIBRATION[severity] ?? ALERT_VIBRATION.HIGH,
+    vibrate: data.kind === 'SIMULATION' ? ALERT_VIBRATION.EXTREME : (ALERT_VIBRATION[severity] ?? ALERT_VIBRATION.HIGH),
     timestamp: Number.isNaN(sentAt) ? Date.now() : sentAt,
     data: { click_path: data.click_path ?? '/', kind: data.kind ?? '', severity },
   }
@@ -329,8 +329,13 @@ export async function listenForForegroundAlerts(
     const severity = data.severity ?? 'HIGH'
     const prefs = loadPreferences()
 
-    if (prefs.sound) void (severity === 'EXTREME' ? playEmergencySound() : playAlertSound())
-    if (prefs.vibration) vibrate(severity)
+    /* Every simulator demo alert uses the emergency tone and the strong
+       vibration, HIGH as well as EXTREME, so the demonstration always sounds
+       like a warning. Test alerts keep the ordinary tone, which is how the two
+       are told apart by ear. Real alerts: emergency tone for EXTREME only. */
+    const emergency = severity === 'EXTREME' || data.kind === 'SIMULATION'
+    if (prefs.sound) void (emergency ? playEmergencySound() : playAlertSound())
+    if (prefs.vibration) vibrate(emergency ? 'EXTREME' : severity)
     void showSystemNotification(data).catch(() => undefined)
 
     onAlert({

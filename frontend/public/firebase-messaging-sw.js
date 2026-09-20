@@ -22,7 +22,7 @@
  *
  * Bump SW_VERSION whenever this file changes, so phones pick up the new worker.
  */
-const SW_VERSION = 'floodsafe-sw-2'
+const SW_VERSION = 'floodsafe-sw-3'
 
 importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js')
 importScripts('https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js')
@@ -55,7 +55,8 @@ function presentation(data) {
       // EXTREME stays on screen until the user acts on it.
       requireInteraction: isExtreme || data.kind === 'SIMULATION',
       silent: false,
-      vibrate: VIBRATION[severity] || VIBRATION.HIGH,
+      // Simulator demo alerts always use the strong pattern, HIGH included.
+      vibrate: data.kind === 'SIMULATION' ? VIBRATION.EXTREME : (VIBRATION[severity] || VIBRATION.HIGH),
       timestamp: Number.isNaN(sentAt) ? Date.now() : sentAt,
       data: {
         click_path: data.click_path || '/',
