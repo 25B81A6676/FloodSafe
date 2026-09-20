@@ -53,6 +53,12 @@ class TestEdgeCacheRules:
     def test_an_explicit_refresh_bypasses_the_cache(self):
         assert _edge_cache_header(_Request("/api/dashboard/summary", refresh="true")) is None
 
+    def test_a_simulation_stamped_read_is_never_cached(self):
+        """A CDN hit never reaches the server, so the client must change the
+        URL; this is the server honouring that."""
+        assert _edge_cache_header(_Request("/api/dashboard/summary", _sim="x")) == "no-store"
+        assert _edge_cache_header(_Request("/api/geography/states", _sim="x")) == "no-store"
+
     def test_conditions_are_not_cached_while_the_simulator_runs(self, monkeypatch):
         """Otherwise the map would keep showing the pre-flood picture."""
         monkeypatch.setattr("app.main._simulation_active", lambda: True)

@@ -28,6 +28,12 @@ os.environ.setdefault("DATABASE_PATH", "/tmp/floodsafe.db")
 # Settings creates the cache directory on import, and /var/task is read-only.
 os.environ.setdefault("CACHE_DIR", "/tmp/floodsafe-cache")
 os.environ.setdefault("STARTUP_PREFETCH", "false")
+# Overpass may wait 90 seconds by default, which is longer than this platform
+# allows a request to live. A query that outlives the ceiling produces a
+# gateway timeout and no response at all; one that gives up first produces a
+# real answer with a note saying what is missing, which is both more useful and
+# cacheable by the CDN.
+os.environ.setdefault("HTTP_OVERPASS_TIMEOUT_SECONDS", "25")
 os.environ.setdefault("ENVIRONMENT", "production")
 
 from app.main import app  # noqa: E402

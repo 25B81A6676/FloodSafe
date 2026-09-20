@@ -129,6 +129,13 @@ def _edge_cache_header(request: Request) -> str | None:
     # An explicit refresh means the caller wants live data, not a copy.
     if request.query_params.get("refresh", "").lower() in ("1", "true", "yes"):
         return None
+    # The frontend stamps reads with the simulation's state while the simulator
+    # is running, precisely so they miss the CDN. Honour that without consulting
+    # the database: a CDN hit never reaches this process, so by the time the
+    # simulation starts the cached copy is already being served, and the client
+    # changing the URL is the only thing that can break through it.
+    if "_sim" in request.query_params:
+        return "no-store"
 
     for prefix, (fresh, stale) in EDGE_CACHE:
         if path.startswith(prefix):

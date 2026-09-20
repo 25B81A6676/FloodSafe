@@ -28,6 +28,30 @@ import type {
 
 const BASE = '/api'
 
+/* Cache-busting token for simulation.
+
+   Read responses are cached by the CDN, which is what makes the app fast. But
+   a CDN hit never reaches the server, so the server cannot decide to skip the
+   cache while the simulator is running - by then it is not being asked. The
+   dashboard would keep showing the pre-flood picture during the one minute
+   that matters.
+
+   So the client changes the URL instead. While a simulation is active every
+   read carries its episode id, which is a URL the CDN has never seen and
+   therefore cannot answer from its copy; the server then sets no-store on it.
+   Leaving the simulation clears the token and the ordinary, cached URLs come
+   back. */
+let cacheBust: string | null = null
+
+export function setCacheBust(token: string | null): void {
+  cacheBust = token
+}
+
+function withCacheBust(path: string): string {
+  if (!cacheBust) return path
+  return `${path}${path.includes('?') ? '&' : '?'}_sim=${encodeURIComponent(cacheBust)}`
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -42,7 +66,8 @@ export class ApiError extends Error {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response
   try {
-    response = await fetch(`${BASE}${path}`, {
+    const url = !init?.method || init.method === 'GET' ? withCacheBust(path) : path
+    response = await fetch(`${BASE}${url}`, {
       headers: { 'Content-Type': 'application/json' },
       ...init,
     })

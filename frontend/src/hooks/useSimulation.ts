@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { api } from '../services/api'
+import { api, setCacheBust } from '../services/api'
 import type { DemoAlert, SimulationReadouts } from '../types'
 
 /**
@@ -50,6 +50,14 @@ export function useSimulation(locationId: string | null): SimulationState {
       setScenarioId(s.scenario_id)
       setOverrides(s.overrides ?? {})
       setReadouts(s.readouts ?? null)
+      /* While simulating, reads must not be answered from the CDN's copy of
+         the pre-flood picture. The token changes with the overrides, so moving
+         a slider is a new URL and therefore a new answer. */
+      setCacheBust(
+        s.active
+          ? `${s.scenario_id ?? 'custom'}-${JSON.stringify(s.overrides ?? {}).length}-${Object.values(s.overrides ?? {}).join('_')}`
+          : null,
+      )
     },
     [],
   )
