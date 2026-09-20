@@ -102,10 +102,15 @@ EDGE_CACHE: tuple[tuple[str, tuple[int, int]], ...] = (
     ("/api/risk/model", (3600, 86400)),
     # Measured conditions. Upstream itself only updates every 15 minutes, so a
     # short window costs no freshness while removing the wait.
-    ("/api/dashboard/", (60, 900)),
-    ("/api/risk/map", (60, 900)),
-    ("/api/monitoring/", (60, 900)),
-    ("/api/weather", (60, 900)),
+    # The long stale window is deliberate. Past the first minute the edge still
+    # answers instantly from its copy while refreshing behind the request, so a
+    # slow or failing upstream degrades into slightly older data rather than a
+    # spinner or a gateway timeout. Nothing pretends to be fresher than it is:
+    # every payload carries the real observation time, which the UI displays.
+    ("/api/dashboard/", (60, 86400)),
+    ("/api/risk/map", (60, 86400)),
+    ("/api/monitoring/", (60, 86400)),
+    ("/api/weather", (60, 86400)),
     ("/api/terrain", (3600, 86400)),
 )
 
