@@ -43,6 +43,35 @@ export interface ForegroundAlert {
 }
 
 const PREF_KEY = 'floodsafe.alertPrefs'
+const REGISTRATION_KEY = 'floodsafe.registration'
+
+/** What this phone last registered for, so it can do so again unprompted. */
+export interface RegistrationTarget {
+  location_id?: string
+  location_name?: string
+  district?: string | null
+  state_id?: string | null
+  state_name?: string | null
+  latitude?: number
+  longitude?: number
+}
+
+function rememberRegistration(target: RegistrationTarget): void {
+  try {
+    window.localStorage.setItem(REGISTRATION_KEY, JSON.stringify(target))
+  } catch {
+    /* private mode */
+  }
+}
+
+export function lastRegistration(): RegistrationTarget | null {
+  try {
+    const raw = window.localStorage.getItem(REGISTRATION_KEY)
+    return raw ? (JSON.parse(raw) as RegistrationTarget) : null
+  } catch {
+    return null
+  }
+}
 
 export function loadPreferences(): AlertPreferences {
   try {
@@ -254,6 +283,7 @@ export async function enableAlerts(target: {
   }
 
   const result = await api.registerDevice({ fcm_token: token, ...target })
+  rememberRegistration(target)
   return { ok: true, deviceLabel: result.device.label ?? undefined }
 }
 
@@ -348,4 +378,33 @@ export async function listenForForegroundAlerts(
       receivedAt: Date.now(),
     })
   })
+}
+
+/**
+ * Re-register this phone, silently, against whatever it registered for before.
+ *
+ * The server keeps device tokens in a database that a serverless host discards
+ * when it recycles an instance, so a phone that registered an hour ago can stop
+ * being reachable without anything visible happening on the phone. Nobody would
+ * notice until an alert failed to arrive.
+ *
+ * The phone is the one participant that cannot lose the token - it minted it -
+ * so it repairs the registration itself. Registration is an upsert keyed on the
+ * token, so doing this repeatedly costs one request and changes nothing when
+ * the server already knows this device.
+ *
+ * Returns false when there is nothing to do: no stored target, or permission
+ * not granted. It never prompts - a prompt needs a tap, and this runs on a
+ * timer.
+ */
+export async function reaffirmRegistration(): Promise<boolean> {
+  if (!pushSupported() || permissionState() !== 'granted') return false
+  const target = lastRegistration()
+  if (!target) return false
+  try {
+    const result = await enableAlerts(target)
+    return result.ok
+  } catch {
+    return false
+  }
 }

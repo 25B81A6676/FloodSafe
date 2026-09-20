@@ -193,3 +193,34 @@ class TestColdStartRestore:
             assert conn.execute(
                 "SELECT COUNT(*) AS n FROM devices WHERE fcm_token='tok-y'"
             ).fetchone()["n"] == 1
+
+
+class TestThePhoneRepairsItsOwnRegistration:
+    """The phone is the only participant that cannot lose its token.
+
+    Server-side durability (Firestore) needs the project owner to switch it on.
+    This path needs nothing, so it is what actually protects a demonstration,
+    and it is worth pinning even though it lives in the frontend.
+    """
+
+    FRONTEND = __import__("pathlib").Path(__file__).resolve().parents[2] / "frontend" / "src"
+
+    def _source(self, *parts: str) -> str:
+        return (self.FRONTEND.joinpath(*parts)).read_text(encoding="utf-8")
+
+    def test_a_successful_registration_is_remembered_on_the_phone(self):
+        source = self._source("services", "notifications.ts")
+        assert "rememberRegistration(target)" in source
+        assert "floodsafe.registration" in source
+
+    def test_reaffirming_never_prompts(self):
+        """A permission prompt needs a tap; this runs on a timer."""
+        source = self._source("services", "notifications.ts")
+        body = source.split("export async function reaffirmRegistration")[1]
+        assert "requestPermission" not in body
+        assert "permissionState() !== 'granted'" in body
+
+    def test_the_app_reaffirms_on_load_and_on_a_timer(self):
+        source = self._source("App.tsx")
+        assert "reaffirmRegistration" in source
+        assert "setInterval" in source and "visibilitychange" in source

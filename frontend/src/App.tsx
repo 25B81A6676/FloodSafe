@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ScopeBar } from './components/ScopeBar'
-import { type ForegroundAlert, listenForForegroundAlerts, primeAudio } from './services/notifications'
+import {
+  type ForegroundAlert,
+  listenForForegroundAlerts,
+  primeAudio,
+  reaffirmRegistration,
+} from './services/notifications'
 import { FreshnessBadge, Spinner, timeAgo } from './components/ui'
 import { useAsync, useStored } from './hooks/useApi'
 import { useSimulation } from './hooks/useSimulation'
@@ -46,6 +51,27 @@ export default function App() {
       window.removeEventListener('keydown', primeAudio)
     }
   }, [])
+  /* Keep this phone registered for alerts.
+
+     The server stores device tokens in a database that the host discards when
+     it recycles an instance, and nothing on the phone shows that it has
+     silently stopped being reachable. Re-asserting the registration costs one
+     request and repairs that within a minute of it happening. The phone is the
+     only participant that cannot lose its token, so it is the right one to do
+     the repairing. */
+  useEffect(() => {
+    void reaffirmRegistration()
+    const timer = window.setInterval(() => void reaffirmRegistration(), 60_000)
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void reaffirmRegistration()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [])
+
   const [stateId, setStateId] = useStored<string>('floodsafe.state', '')
   const [districtId, setDistrictId] = useStored<string>('floodsafe.district', '')
   const [storedLocationId, setStoredLocationId] = useStored<string>('floodsafe.location', '')
