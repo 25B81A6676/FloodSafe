@@ -11,3 +11,6 @@ fastapi>=0.110
 pydantic>=2.5
 pydantic-settings>=2.1
 httpx>=0.26
+# Needed by fcm_client to mint the OAuth2 token for Firebase Cloud Messaging.
+# Imported lazily, so without it the app still runs - it just cannot push.
+google-auth>=2.28
