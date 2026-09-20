@@ -128,8 +128,9 @@ def _access_token() -> str | None:
     try:
         from google.auth.transport.requests import Request
         from google.oauth2 import service_account
-    except ImportError:
-        log.error("google-auth is not installed; push notifications are unavailable")
+    except ImportError as exc:
+        # Most often the requests extra: google.auth.transport.requests needs it.
+        log.error("google-auth import failed (%s); push notifications are unavailable", exc)
         return None
 
     with _credentials_lock:

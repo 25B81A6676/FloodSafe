@@ -13,4 +13,4 @@ pydantic-settings>=2.1
 httpx>=0.26
 # Needed by fcm_client to mint the OAuth2 token for Firebase Cloud Messaging.
 # Imported lazily, so without it the app still runs - it just cannot push.
-google-auth>=2.28
+google-auth[requests]>=2.28
