@@ -46,7 +46,7 @@ def main() -> int:
 
     with httpx.Client(follow_redirects=True) as client:
         states = [s["id"] for s in client.get(f"{base}/api/geography/states", timeout=60).json()["states"]]
-        print(f"warming {len(states)} states via {base}")
+        print(f"warming {len(states)} states via {base}", flush=True)
         started = time.perf_counter()
         done = 0
         with concurrent.futures.ThreadPoolExecutor(args.workers) as pool:
@@ -54,7 +54,8 @@ def main() -> int:
             for future in concurrent.futures.as_completed(futures):
                 state_id, worst, worst_path = future.result()
                 done += 1
-                print(f"[{done:2}/{len(states)}] {state_id:<32} slowest {worst:6.1f}s  {worst_path}")
+                print(f"[{done:2}/{len(states)}] {state_id:<32} slowest {worst:6.1f}s  {worst_path}",
+                      flush=True)
         print(f"done in {time.perf_counter() - started:.0f}s")
     return 0
 
