@@ -188,6 +188,31 @@ async def get_river_context_batch(
     if not pending:
         return out
 
+    # One Overpass request per chunk, not one for the whole state. Unioning 75
+    # `around` clauses - Uttar Pradesh - reliably read-timed out, and because a
+    # failed query caches nothing, every later request paid the full timeout
+    # again: measured at 181 s for a state that should cost seconds. Chunking
+    # keeps each query inside Overpass's budget and confines a failure to the
+    # districts in that chunk, which then fall back to DEMO individually
+    # instead of blanking the state.
+    for chunk in [
+        pending[i:i + RIVER_CHUNK_SIZE] for i in range(0, len(pending), RIVER_CHUNK_SIZE)
+    ]:
+        await _river_context_chunk(out, chunk, radius_m)
+    return out
+
+
+#: District centres per Overpass request. Fifteen keeps the query well inside
+#: the server's timeout while still amortising the round trip.
+RIVER_CHUNK_SIZE = 15
+
+
+async def _river_context_chunk(
+    out: dict[str, dict[str, Any]],
+    pending: list[tuple[str, float, float]],
+    radius_m: float,
+) -> None:
+    """Resolve one chunk of points, writing results into ``out``."""
     clauses = "".join(
         f'way(around:{int(radius_m)},{lat:.5f},{lon:.5f})["waterway"~"^(river|stream|canal|drain)$"];'
         for _, lat, lon in pending
@@ -202,10 +227,11 @@ async def get_river_context_batch(
     try:
         raw, freshness, age = await _overpass(query, cache_key=bulk_key, ttl=settings.cache_ttl_osm)
     except UpstreamError as exc:
-        log.warning("%s river context unavailable: %s", EV_DEMO, str(exc)[:160])
+        log.warning("%s river context unavailable for %d point(s): %s",
+                    EV_DEMO, len(pending), str(exc)[:160])
         for pid, lat, lon in pending:
             out[pid] = _river_unavailable(pid, str(exc), radius_m)
-        return out
+        return
 
     ways = [e for e in raw.get("elements", []) if e.get("type") == "way"]
     parsed = [
@@ -254,8 +280,6 @@ async def get_river_context_batch(
             payload, source="osm-river", ttl_seconds=settings.cache_ttl_osm,
         )
         out[pid] = _river_result(pid, payload, freshness, age, radius_m)
-
-    return out
 
 
 def _river_result(

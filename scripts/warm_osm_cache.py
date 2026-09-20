@@ -30,7 +30,8 @@ from app.database.db import init_db  # noqa: E402
 
 
 async def warm(state_ids: list[str] | None, infrastructure: bool) -> int:
-    from app.services import india_service, osm_service, region_service
+    from app.config.settings import settings
+    from app.services import data_cache, india_service, osm_service, region_service
 
     init_db()
     region_service.reload_regions()
@@ -52,7 +53,17 @@ async def warm(state_ids: list[str] | None, infrastructure: bool) -> int:
             locations = region_service.get_locations(region["id"])
             points = [(l.id, l.latitude, l.longitude) for l in locations]
             await osm_service.get_river_context_batch(points)
-            note = f"{len(points)} points"
+            # Verify rather than assume. get_river_context_batch degrades to
+            # DEMO values instead of raising, so an earlier version of this
+            # script reported "0 states failed" while caching nothing at all
+            # for the large states - which is exactly the case that matters.
+            cached = sum(1 for _, lat, lon in points if data_cache.get(
+                data_cache.make_key("osm-river", lat=lat, lon=lon,
+                                    r=settings.osm_search_radius_m)) is not None)
+            note = f"{cached}/{len(points)} points cached"
+            if cached < len(points):
+                failures += 1
+                note += "  INCOMPLETE"
             if infrastructure:
                 infra = await osm_service.get_region_infrastructure(region)
                 note += f", {len(infra.get('features', []))} features"
@@ -61,7 +72,7 @@ async def warm(state_ids: list[str] | None, infrastructure: bool) -> int:
             note = f"FAILED {type(exc).__name__}: {exc}"[:80]
         print(f"{label} {time.perf_counter() - began:6.1f}s  {note}", flush=True)
 
-    print(f"done in {time.perf_counter() - started:.0f}s, {failures} state(s) failed")
+    print(f"done in {time.perf_counter() - started:.0f}s, {failures} state(s) incomplete")
     if failures:
         print("Re-run to retry the failures; cached states are skipped automatically.")
     return 1 if failures == len(states) else 0

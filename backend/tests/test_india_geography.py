@@ -256,14 +256,37 @@ class TestNoFabricatedCoverage:
 
     def test_offline_district_locations_fall_back_to_the_real_centroid(self, client):
         district = india_service.list_districts("telangana")[0]
-        response = client.get("/api/locations", params={"region_id": district["id"]})
-        assert response.status_code == 200
-        body = response.json()
-        assert body["count"] >= 1
-        # Offline, OSM cannot answer, so the centroid is used - and said so.
-        assert body["locations"][0]["settlement_type"] == "district_centroid"
+
+        # Drive the fallback itself rather than relying on this district being
+        # absent from the bundled snapshot. It used to be; once the snapshot
+        # grew to cover every state the request was answered from real seeded
+        # OSM data instead, and the fallback stopped being exercised at all.
+        from app.database.db import write_conn
+
+        with write_conn() as conn:
+            removed = conn.execute(
+                "DELETE FROM api_cache WHERE source = 'overpass'"
+            ).rowcount
+        try:
+            response = client.get("/api/locations", params={"region_id": district["id"]})
+            assert response.status_code == 200
+            body = response.json()
+            assert body["count"] >= 1
+            # Offline with nothing cached, the centroid is used - and said so.
+            assert body["locations"][0]["settlement_type"] == "district_centroid"
+            assert body["freshness"] != "LIVE"
+            assert any("centre" in n or "unavailable" in n for n in body["notes"])
+        finally:
+            if removed:  # restore the snapshot for whatever runs next
+                from app.services import seed_cache
+
+                seed_cache.load_seed()
+
+    def test_seeded_district_coverage_is_never_reported_as_live(self, client):
+        """The bundled snapshot is real data, but it is not fresh data."""
+        district = india_service.list_districts("telangana")[0]
+        body = client.get("/api/locations", params={"region_id": district["id"]}).json()
         assert body["freshness"] != "LIVE"
-        assert any("centre" in n or "unavailable" in n for n in body["notes"])
 
     def test_a_synthesized_region_never_claims_curated_river_data(self):
         region = region_service.get_region("rajasthan")
