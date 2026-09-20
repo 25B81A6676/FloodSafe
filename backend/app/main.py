@@ -42,9 +42,9 @@ async def lifespan(app: FastAPI):
     region_service.reload_regions()
     region_service.sync_locations_to_db()
 
-    # Load the bundled OpenStreetMap / terrain snapshot before anything can ask
-    # for it. On a serverless host this is what keeps a cold request from
-    # blocking on a 12-16 second Overpass query.
+    # The shared part of the bundled OpenStreetMap / terrain snapshot. Each
+    # region's own shard is loaded when that region is first resolved, so a
+    # cold start does not pay for 35 states nobody asked for.
     seed_cache.load_seed()
 
     if settings.startup_prefetch:

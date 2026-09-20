@@ -36,31 +36,64 @@ from app.services.data_cache import iso, parse_iso, utcnow
 
 log = get_logger(__name__)
 
-SEED_PATH = settings.data_dir / "seed" / "cache_seed.json.gz"
+#: Shards already loaded in this process.
+_loaded: set[str] = set()
+
+SEED_DIR = settings.data_dir / "seed"
+
+#: Entries that belong to no single state - they load on every start.
+COMMON_SHARD = "common"
+
+
+def shard_name(region_id: str) -> str:
+    return f"{region_id}.json.gz"
 
 #: Only these sources are seedable. Everything else is time-sensitive and must
 #: be fetched live, so a stale snapshot would be worse than a slow request.
 SEEDABLE_SOURCES = ("overpass", "terrain", "osm-river")
 
+#: Cache keys never worth bundling, even though their source is seedable.
+#: ``osm-river-bulk`` holds the raw Overpass response for a chunk of points;
+#: the per-point results derived from it are stored separately and are three
+#: orders of magnitude smaller. Bundling both put 13 MB of redundant data in
+#: front of every cold start.
+NON_SEEDABLE_KEY_PREFIXES = ("osm-river-bulk|",)
+
+
+def seedable(cache_key: str, source: str) -> bool:
+    return source in SEEDABLE_SOURCES and not cache_key.startswith(NON_SEEDABLE_KEY_PREFIXES)
+
+
 #: How long a seeded entry stays valid once loaded. Matches the normal OSM TTL.
 SEED_TTL = timedelta(days=7)
 
 
-def load_seed() -> dict[str, Any]:
-    """Insert bundled entries for any cache key that is not already present.
+def load_seed(region_id: str | None = None) -> dict[str, Any]:
+    """Insert bundled entries for one region, or the shared shard.
 
-    Existing entries always win — a live fetch is better than a snapshot, so
+    Sharded on purpose. One file covering the country took 6.8 s to load into
+    SQLite, and a serverless instance pays that on every cold start while
+    someone waits - for 35 states they are not looking at. A state's shard is a
+    fraction of that, and is only loaded when that state is actually asked for.
+
+    Existing entries always win - a live fetch is better than a snapshot, so
     this never overwrites anything the running instance has already retrieved.
     """
-    if not SEED_PATH.exists():
-        log.info("no bundled cache seed at %s (fine — everything will be fetched live)", SEED_PATH)
+    shard = region_id or COMMON_SHARD
+    if shard in _loaded:
+        return {"loaded": 0, "skipped": 0, "available": True, "cached": True}
+    _loaded.add(shard)  # one attempt per shard per process, however it goes
+
+    path = SEED_DIR / shard_name(shard)
+    if not path.exists():
+        # Normal for a region with nothing bundled; everything is fetched live.
         return {"loaded": 0, "skipped": 0, "available": False}
 
     try:
-        with gzip.open(SEED_PATH, "rt", encoding="utf-8") as fh:
+        with gzip.open(path, "rt", encoding="utf-8") as fh:
             seed = json.load(fh)
     except (OSError, json.JSONDecodeError) as exc:
-        log.warning("cache seed unreadable (%s) — continuing without it", exc)
+        log.warning("cache seed %s unreadable (%s) - continuing without it", path.name, exc)
         return {"loaded": 0, "skipped": 0, "available": False}
 
     entries = seed.get("entries") or []
@@ -73,7 +106,7 @@ def load_seed() -> dict[str, Any]:
     with write_conn() as conn:
         for e in entries:
             key = e.get("cache_key")
-            if not key or e.get("source") not in SEEDABLE_SOURCES:
+            if not key or not seedable(key, e.get("source", "")):
                 skipped += 1
                 continue
             if key in existing:
@@ -91,8 +124,9 @@ def load_seed() -> dict[str, Any]:
             loaded += 1
 
     log.info(
-        "cache seed: loaded %d entr%s, skipped %d (captured %s)",
-        loaded, "y" if loaded == 1 else "ies", skipped, seed.get("captured_at", "unknown"),
+        "cache seed [%s]: loaded %d entr%s, skipped %d (captured %s)",
+        shard, loaded, "y" if loaded == 1 else "ies", skipped,
+        seed.get("captured_at", "unknown"),
     )
     return {
         "loaded": loaded,

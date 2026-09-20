@@ -118,6 +118,18 @@ def list_regions() -> list[dict[str, Any]]:
     return out
 
 
+def _load_seed_for(region_id: str) -> None:
+    """Load the bundled snapshot for a region, once per process. Never raises:
+    without it everything is simply fetched live, which is the old behaviour."""
+    from app.services import seed_cache
+
+    try:
+        # A district (``kerala__wayanad``) is served by its state's shard.
+        seed_cache.load_seed(region_id.split("__", 1)[0])
+    except Exception as exc:  # noqa: BLE001 - a snapshot must never break a request
+        log.warning("could not load the bundled snapshot for %s: %s", region_id, exc)
+
+
 def get_region(region_id: str | None = None) -> dict[str, Any]:
     """Curated region file if one exists, otherwise a synthesised Indian scope.
 
@@ -127,6 +139,10 @@ def get_region(region_id: str | None = None) -> dict[str, Any]:
     exists.
     """
     rid = region_id or settings.default_region_id
+    # Bring this region's bundled geometry into the cache before anything asks
+    # for it. Sharded, so a cold start pays for the one region in use rather
+    # than for the whole country - see seed_cache.load_seed.
+    _load_seed_for(rid)
     regions = _load_all()
     if rid in regions:
         return regions[rid]
@@ -328,34 +344,38 @@ def sync_locations_to_db() -> int:
     """Mirror the configured locations into SQLite (spec table)."""
     n = 0
     now = iso(utcnow())
+    # Resolve every location BEFORE opening the write transaction. Reading
+    # inside it deadlocks: get_locations resolves a region, resolving a region
+    # loads its bundled snapshot, and loading writes - to a second connection,
+    # against a write lock this one is still holding.
+    resolved = [loc for rid in _load_all() for loc in get_locations(rid)]
     with write_conn() as conn:
-        for rid in _load_all():
-            for loc in get_locations(rid):
-                conn.execute(
-                    """INSERT INTO monitoring_locations
-                       (id, region_id, name, district, latitude, longitude, elevation_m,
-                        nearest_river, settlement_type, exposure, updated_at,
-                        country, state_id, origin)
-                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-                       ON CONFLICT(id) DO UPDATE SET
-                         region_id=excluded.region_id, name=excluded.name,
-                         district=excluded.district, latitude=excluded.latitude,
-                         longitude=excluded.longitude, nearest_river=excluded.nearest_river,
-                         settlement_type=excluded.settlement_type,
-                         exposure=excluded.exposure, updated_at=excluded.updated_at,
-                         country=excluded.country, state_id=excluded.state_id,
-                         origin=excluded.origin""",
-                    (
-                        loc.id, loc.region_id, loc.name, loc.district,
-                        loc.latitude, loc.longitude, loc.reference_elevation_m,
-                        loc.nearest_river, loc.settlement_type, loc.exposure, now,
-                        # A curated region id is the state slug, which is what
-                        # makes the pilot regions queryable by state alongside
-                        # everything resolved from the India dataset.
-                        "India", loc.region_id, "curated",
-                    ),
-                )
-                n += 1
+        for loc in resolved:
+            conn.execute(
+                """INSERT INTO monitoring_locations
+                   (id, region_id, name, district, latitude, longitude, elevation_m,
+                    nearest_river, settlement_type, exposure, updated_at,
+                    country, state_id, origin)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                   ON CONFLICT(id) DO UPDATE SET
+                     region_id=excluded.region_id, name=excluded.name,
+                     district=excluded.district, latitude=excluded.latitude,
+                     longitude=excluded.longitude, nearest_river=excluded.nearest_river,
+                     settlement_type=excluded.settlement_type,
+                     exposure=excluded.exposure, updated_at=excluded.updated_at,
+                     country=excluded.country, state_id=excluded.state_id,
+                     origin=excluded.origin""",
+                (
+                    loc.id, loc.region_id, loc.name, loc.district,
+                    loc.latitude, loc.longitude, loc.reference_elevation_m,
+                    loc.nearest_river, loc.settlement_type, loc.exposure, now,
+                    # A curated region id is the state slug, which is what
+                    # makes the pilot regions queryable by state alongside
+                    # everything resolved from the India dataset.
+                    "India", loc.region_id, "curated",
+                ),
+            )
+            n += 1
     log.info("synced %d monitoring locations to SQLite", n)
     return n
 
