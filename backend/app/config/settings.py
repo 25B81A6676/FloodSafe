@@ -120,6 +120,12 @@ class Settings(BaseSettings):
     simulation_alerts_enabled: bool = True
     # Deep link used in the notification body and click action.
     public_dashboard_url: str = "http://localhost:5173"
+    # Where registered phones are kept so they survive a restart. "" keeps them
+    # only in SQLite, which on a serverless host lives in /tmp and is wiped
+    # whenever the instance is recycled - every phone would have to register
+    # again. "firestore" mirrors them into the Firebase project already used
+    # for messaging. Best-effort either way; it never blocks a registration.
+    device_store: str = ""
     # Bound on how long a dispatch may hold up a risk response.
     fcm_timeout_seconds: float = 10.0
 

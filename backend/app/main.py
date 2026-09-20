@@ -82,6 +82,69 @@ app.add_middleware(
 )
 
 
+# How long a CDN in front of this app may serve each GET response, in seconds.
+# A first request for a state the cache has never seen takes tens of seconds:
+# it fetches weather, terrain and river geometry for every district. Serving
+# that from the edge afterwards is the difference between a demonstration that
+# waits and one that does not.
+#
+# The second number is stale-while-revalidate: past the first window the edge
+# answers instantly from its copy AND refreshes in the background, so only the
+# very first visitor ever waits.
+#
+# Prefix -> (fresh_seconds, stale_seconds)
+EDGE_CACHE: tuple[tuple[str, tuple[int, int]], ...] = (
+    # Geography and river geometry: administrative data, effectively static.
+    ("/api/geography", (3600, 86400)),
+    ("/api/gis/", (3600, 86400)),
+    ("/api/regions", (3600, 86400)),
+    ("/api/locations", (3600, 86400)),
+    ("/api/risk/model", (3600, 86400)),
+    # Measured conditions. Upstream itself only updates every 15 minutes, so a
+    # short window costs no freshness while removing the wait.
+    ("/api/dashboard/", (60, 900)),
+    ("/api/risk/map", (60, 900)),
+    ("/api/monitoring/", (60, 900)),
+    ("/api/weather", (60, 900)),
+    ("/api/terrain", (3600, 86400)),
+)
+
+# Never cached, whatever the path prefixes above say: these either change on
+# every call or report live state that must not be stale.
+EDGE_CACHE_NEVER = ("/api/notifications", "/api/simulation", "/api/alerts", "/api/health")
+
+
+def _edge_cache_header(request: Request) -> str | None:
+    """Cache-Control for this request, or None to leave it uncached."""
+    if request.method not in ("GET", "HEAD"):
+        return None
+    path = request.url.path
+    if path.startswith(EDGE_CACHE_NEVER):
+        return None
+    # An explicit refresh means the caller wants live data, not a copy.
+    if request.query_params.get("refresh", "").lower() in ("1", "true", "yes"):
+        return None
+
+    for prefix, (fresh, stale) in EDGE_CACHE:
+        if path.startswith(prefix):
+            # While the simulator is driving the risk engine, every reading it
+            # touches must be live or the demonstration would show a cached
+            # pre-flood picture. Correctness beats speed for these few minutes.
+            if fresh < 3600 and _simulation_active():
+                return "no-store"
+            return f"public, max-age=0, s-maxage={fresh}, stale-while-revalidate={stale}"
+    return None
+
+
+def _simulation_active() -> bool:
+    try:
+        from app.database import repository
+
+        return bool(repository.load_simulation_state().get("active"))
+    except Exception:  # noqa: BLE001 - never fail a request over a cache hint
+        return False
+
+
 @app.middleware("http")
 async def timing_middleware(request: Request, call_next):
     started = time.perf_counter()
@@ -90,6 +153,10 @@ async def timing_middleware(request: Request, call_next):
     response.headers["X-Process-Time-Ms"] = f"{elapsed_ms:.1f}"
     if request.url.path.startswith("/api") and elapsed_ms > 1500:
         log.info("slow request %s %s took %.0f ms", request.method, request.url.path, elapsed_ms)
+    if response.status_code == 200:
+        cache_control = _edge_cache_header(request)
+        if cache_control:
+            response.headers["Cache-Control"] = cache_control
     return response
 
 

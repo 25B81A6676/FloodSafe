@@ -23,5 +23,8 @@
       "source": "/openapi.json",
       "destination": "/api/index?__vercel_path=/openapi.json"
     }
+  ],
+  "regions": [
+    "bom1"
   ]
 }

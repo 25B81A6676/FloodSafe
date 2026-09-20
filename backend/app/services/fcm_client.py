@@ -87,6 +87,12 @@ def _service_account_info() -> dict[str, Any] | None:
         return None
 
 
+def service_account_info() -> dict[str, Any] | None:
+    """The configured service account, for anything else in this project that
+    needs to authenticate as it (see device_store)."""
+    return _service_account_info()
+
+
 def project_id() -> str:
     if settings.fcm_project_id.strip():
         return settings.fcm_project_id.strip()

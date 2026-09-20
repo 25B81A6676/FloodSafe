@@ -19,12 +19,70 @@ from typing import Any
 from app.config.logging_config import get_logger
 from app.config.settings import settings
 from app.database.db import get_conn, write_conn
+from app.services import device_store
 from app.services.data_cache import iso, utcnow
 from app.services.fcm_client import mask_token
 
 log = get_logger(__name__)
 
 EARTH_RADIUS_M = 6_371_000.0
+
+_restored = False
+
+
+def _restore_from_store() -> None:
+    """Bring mirrored devices back into SQLite, once per process.
+
+    On a serverless host the database is empty on every cold start, so without
+    this the first alert after an idle period would reach nobody. Rows are
+    inserted only when their token is absent, so a phone that has re-registered
+    in this process keeps its newer row.
+    """
+    global _restored
+    if _restored or not device_store.enabled():
+        return
+    _restored = True  # set first: one attempt per process, however it goes
+    devices = device_store.load_all()
+    if not devices:
+        return
+    restored = 0
+    with write_conn() as conn:
+        for device in devices:
+            exists = conn.execute(
+                "SELECT 1 FROM devices WHERE fcm_token=?", (device["fcm_token"],)
+            ).fetchone()
+            if exists:
+                continue
+            conn.execute(
+                """INSERT INTO devices
+                   (fcm_token, label, location_id, location_name, district, state_id,
+                    state_name, latitude, longitude, active, created_at, updated_at,
+                    last_seen_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (device["fcm_token"], device["label"], device["location_id"],
+                 device["location_name"], device["district"], device["state_id"],
+                 device["state_name"], device["latitude"], device["longitude"],
+                 1 if device["active"] else 0, device["created_at"],
+                 device["updated_at"], device["last_seen_at"]),
+            )
+            restored += 1
+    if restored:
+        log.info("[DEVICE] restored %d device(s) from the durable store", restored)
+
+
+def _mirror(fcm_token: str) -> None:
+    """Write one device through to the durable store. Never raises."""
+    if not device_store.enabled():
+        return
+    with get_conn() as conn:
+        row = conn.execute("SELECT * FROM devices WHERE fcm_token=?", (fcm_token,)).fetchone()
+    if row is None:
+        return
+    try:
+        device_store.save(_row_to_device(row, include_token=True))
+    except Exception as exc:  # noqa: BLE001 - durability is a bonus, not a gate
+        log.warning("could not mirror a device (%s); it is registered but not durable",
+                    type(exc).__name__)
 
 
 def _row_to_device(row: Any, *, include_token: bool = False) -> dict[str, Any]:
@@ -67,6 +125,7 @@ def register(
     label: str | None = None,
 ) -> dict[str, Any]:
     """Create or update the row for one phone, keyed on its FCM token."""
+    _restore_from_store()
     now = iso(utcnow())
     with write_conn() as conn:
         existing = conn.execute(
@@ -97,6 +156,7 @@ def register(
             )
         row = conn.execute("SELECT * FROM devices WHERE fcm_token=?", (fcm_token,)).fetchone()
 
+    _mirror(fcm_token)
     device = _row_to_device(row)
     log.info(
         "[DEVICE] registered %s (%s) at %s",
@@ -106,6 +166,7 @@ def register(
 
 
 def list_devices(*, active_only: bool = False, include_token: bool = False) -> list[dict[str, Any]]:
+    _restore_from_store()
     sql = "SELECT * FROM devices"
     if active_only:
         sql += " WHERE active = 1"
@@ -116,6 +177,7 @@ def list_devices(*, active_only: bool = False, include_token: bool = False) -> l
 
 
 def count_active() -> int:
+    _restore_from_store()
     with get_conn() as conn:
         return conn.execute("SELECT COUNT(*) AS n FROM devices WHERE active=1").fetchone()["n"]
 
@@ -127,7 +189,10 @@ def set_active(device_id: int, active: bool) -> dict[str, Any] | None:
             (1 if active else 0, iso(utcnow()), device_id),
         )
         row = conn.execute("SELECT * FROM devices WHERE id=?", (device_id,)).fetchone()
-    return _row_to_device(row) if row else None
+    if row is None:
+        return None
+    _mirror(row["fcm_token"])
+    return _row_to_device(row)
 
 
 def deactivate_tokens(tokens: list[str]) -> int:
@@ -145,6 +210,8 @@ def deactivate_tokens(tokens: list[str]) -> int:
             conn.execute(
                 "UPDATE devices SET active=0, updated_at=? WHERE fcm_token=?", (now, token)
             )
+    for token in tokens:
+        _mirror(token)
     log.info("[DEVICE] deactivated %d unreachable device(s)", len(tokens))
     return len(tokens)
 
