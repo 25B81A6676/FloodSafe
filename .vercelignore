@@ -1,11 +1,21 @@
-# Keep the serverless bundle small — none of this is needed to serve the API.
-backend/tests/
-backend/pytest.ini
-ml/
-docs/
-.hallmark/
-data/cache/
-frontend/node_modules/
-frontend/src/
-**/__pycache__/
+# Keep the upload small. Anything here is either rebuilt on Vercel, secret, or
+# only used locally. data/cache/floodsafe.db alone is 158 MB and is regenerated
+# at runtime from data/seed, so it must never be uploaded.
+.git
+node_modules
+.venv
+venv
+__pycache__
 *.pyc
+.pytest_cache
+backend/tests
+backend/pytest.ini
+data/cache
+data/historical
+secrets
+ml
+docs
+graphify-out
+.hallmark
+frontend/dist
+frontend/node_modules

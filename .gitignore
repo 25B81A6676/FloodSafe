@@ -50,3 +50,5 @@ Thumbs.db
 *.tsbuildinfo
 
 graphify-out/
+# Vercel CLI project link
+.vercel
