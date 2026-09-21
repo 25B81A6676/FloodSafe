@@ -111,13 +111,17 @@ person in the room:
 python scripts/warm_edge_cache.py --workers 2
 ```
 
-Result, measured on the deployment:
+Result, measured across all 36 states after warming - 108 requests, all 200:
 
-| | Before | After |
-|---|---|---|
-| `/api/dashboard/summary` (new state) | 38 s | **0.11 s** |
-| `/api/risk/map` | 60 s (timeout) | **0.08 s** |
-| `/api/gis/layers` | 11 s | **0.32 s** |
+| | Before | Median | Worst |
+|---|---|---|---|
+| `/api/dashboard/summary` | 38 s, or a 60 s timeout | **0.08 s** | 0.13 s |
+| `/api/risk/map` | 60 s timeout | **0.03 s** | 0.10 s |
+| `/api/gis/layers` | 11 s, or a 60 s timeout | **0.03 s** | 0.23 s |
+
+Cold, unwarmed, a state now costs a few seconds for the dashboard and risk map.
+`/api/gis/layers` is still 35-40 s cold: the facilities data is 128 MB across
+the country, too large to bundle without slowing down every start. Warm it.
 
 ## 5. Registered phones
 
